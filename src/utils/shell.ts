@@ -11,9 +11,13 @@ export function exec(cmd: string, options?: { stdio?: 'inherit' | 'pipe' }): str
   }
 }
 
+import fs from 'fs';
+
 export function cmdExists(cmd: string): boolean {
+  // Windows: 用 where；Unix: 用 which
+  const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
   try {
-    execSync(`which ${cmd}`, { encoding: 'utf-8', stdio: 'pipe' });
+    execSync(checkCmd, { encoding: 'utf-8', stdio: 'pipe' });
     return true;
   } catch {
     return false;
@@ -22,17 +26,15 @@ export function cmdExists(cmd: string): boolean {
 
 export function fileExists(path: string): boolean {
   try {
-    execSync(`test -f ${path}`, { stdio: 'pipe' });
-    return true;
+    return fs.existsSync(path) && fs.statSync(path).isFile();
   } catch {
     return false;
   }
-
 }
+
 export function dirExists(path: string): boolean {
   try {
-    execSync(`test -d ${path}`, { stdio: 'pipe' });
-    return true;
+    return fs.existsSync(path) && fs.statSync(path).isDirectory();
   } catch {
     return false;
   }

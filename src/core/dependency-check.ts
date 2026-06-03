@@ -91,7 +91,8 @@ export function readState(cwd: string): InitState | null {
     try {
       return JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
     } catch {
-      return null;
+      // 解析失败继续尝试下一个候选文件
+      continue;
     }
   }
 
