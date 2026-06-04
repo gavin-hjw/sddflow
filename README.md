@@ -19,11 +19,14 @@ cd your-project
 sddflow init --tools claude
 ```
 
-`init` will automatically:
-1. Detect and guide OpenSpec CLI installation
-2. Detect Superpowers and show install instructions
-3. Check if OpenSpec is initialized in the project
-4. Generate sddflow skills to the selected tools' local skill directories, such as `.claude/skills/sddflow/`, `.codex/skills/sddflow/`, `.cursor/skills/sddflow/`, or `.opencode/commands/sddflow/`
+`init` runs in four phases:
+
+1. **[1/4] Component check**: OpenSpec CLI + Superpowers plugin (abort with install guidance if missing)
+2. **[2/4] Skill check**: 6 required Superpowers skills (`/brainstorming`, `/writing-plans`, `/subagent-driven-development`, `/test-driven-development`, `/verification-before-completion`, `/finishing-a-development-branch`)
+3. **[3/4] Auto-init**: runs `openspec init --tools <tools>` using the `--tools` flag passed to `sddflow init`
+4. **[4/4] Integrity check**: verifies `openspec/AGENTS.md`, `openspec/project.md`, and `.claude/commands/openspec/*.md`, etc.
+
+After all phases pass, generates sddflow skills to the selected tools' local skill directories
 
 Supported tools: `claude`, `codex`, `cursor`, `opencode` (comma-separated, e.g. `--tools claude,codex`)
 
@@ -79,20 +82,21 @@ available phases. OpenCode keeps its native command-tree form under
 ## Dependency Strategy
 
 ```
-Best with: OpenSpec + Superpowers
-Works without them: yes, with manual-file fallback
+Requires: OpenSpec CLI + OpenSpec skill integration + Superpowers writing-plans skill
+Init blocked until all are installed
 ```
 
-| Dependency | Install | Fallback when missing |
+| Dependency | Install | When missing at init |
 |------------|---------|----------------------|
-| OpenSpec | `npm install -g @fission-ai/openspec@latest` | Manually create `openspec/changes/` directories and files |
-| Superpowers | `/plugin install superpowers@claude-plugins-official` | Manually break down plan-ready.md steps in build phase |
+| OpenSpec CLI | `npm install -g @fission-ai/openspec@latest` | Abort init, show CLI install steps |
+| OpenSpec Skill | `openspec init --tools <tools>` | Abort init, prompt to run openspec init |
+| Superpowers | `/plugin install superpowers@claude-plugins-official` (Claude Code), etc. | Abort init, show plugin install steps |
 
 ### Dual-layer dependency check
 
 | Layer | Mechanism | When missing |
 |-------|-----------|-------------|
-| **Init time** | Detect OpenSpec CLI from `PATH`; detect project OpenSpec in `./openspec/`; detect Superpowers in the selected tools' local/global skill dirs | Non-blocking, skills still generated |
+| **Init time** | Strict check for OpenSpec CLI, OpenSpec tool integration files, and Superpowers writing-plans skill | **Abort init** with step-by-step install guidance |
 | **Runtime** | Dependency check injected into SKILL.md | Build phase falls back to manual step-by-step execution |
 
 ## Architecture

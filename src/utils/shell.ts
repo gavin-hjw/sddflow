@@ -1,14 +1,26 @@
 import { execSync } from 'child_process';
 
-export function exec(cmd: string, options?: { stdio?: 'inherit' | 'pipe' }): string {
+export function exec(cmd: string, options?: { stdio?: 'inherit' | 'pipe'; cwd?: string }): string {
   try {
     return execSync(cmd, {
       encoding: 'utf-8',
       stdio: options?.stdio ?? 'pipe',
+      cwd: options?.cwd,
     }).trim();
   } catch {
     return '';
   }
+}
+
+export function execOrThrow(
+  cmd: string,
+  options?: { stdio?: 'inherit' | 'pipe'; cwd?: string },
+): void {
+  execSync(cmd, {
+    encoding: 'utf-8',
+    stdio: options?.stdio ?? 'inherit',
+    cwd: options?.cwd,
+  });
 }
 
 import fs from 'fs';

@@ -1,13 +1,20 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import path from 'path';
-import { checkDependencies, tryAutoInstall, checkOpenSpecInitialized, writeState } from '../core/dependency-check.js';
+import {
+  checkDependencies,
+  tryAutoInstall,
+  writeState,
+  validateComponentInstallation,
+  validateSuperpowersSkills,
+  printInitPrerequisiteFailures,
+  verifyOpenSpecInitIntegrity,
+  runOpenSpecInit,
+  printIntegrityFailures,
+} from '../core/dependency-check.js';
 import { generateSkills } from '../core/skill-generator.js';
-import { TOOL_PATHS, DEPS } from '../core/constants.js';
+import { DEPS, SUPERPOWERS_REQUIRED_SKILLS, OPENSPEC_INIT_MARKERS } from '../core/constants.js';
+import path from 'path';
 import { logger } from '../utils/logger.js';
-import { exec, dirExists } from '../utils/shell.js';
-
-const SUPPORTED_TOOLS = Object.keys(TOOL_PATHS);
 
 export const initCommand = new Command('init')
   .description('Initialize sddflow skills in the current project')
@@ -22,8 +29,8 @@ export const initCommand = new Command('init')
     logger.info(`sddflow init — ${installGlobally ? 'global skill setup' : 'workflow orchestrator setup'}`);
     logger.blank();
 
-    // Step 1: Check OpenSpec
-    logger.step('Checking OpenSpec ...');
+    // ── 阶段 1：检测 OpenSpec CLI + Superpowers 插件 ──
+    logger.step('[1/4] Checking OpenSpec CLI ...');
     let depStatus = checkDependencies({ cwd, tools });
 
     if (!depStatus.openspec.installed) {
@@ -32,72 +39,111 @@ export const initCommand = new Command('init')
         {
           type: 'confirm',
           name: 'installOpenSpec',
-          message: `Auto-install? (npm install -g ${DEPS.openspec.npmPkg}@latest)`,
+          message: `Auto-install? (${DEPS.openspec.installHint})`,
           default: true,
         },
       ]);
 
       if (installOpenSpec) {
         const ok = tryAutoInstall(DEPS.openspec.npmPkg);
-        depStatus = checkDependencies({ cwd, tools }); // recheck
+        depStatus = checkDependencies({ cwd, tools });
         if (ok) depStatus.openspec.autoInstalled = true;
-      } else {
-        logger.warn('Skipped OpenSpec install — spec phase will use manual fallback');
       }
     } else {
       logger.success(`OpenSpec CLI installed${depStatus.openspec.version ? ` (v${depStatus.openspec.version})` : ''}`);
     }
 
-    // Step 2: Check Superpowers
-    logger.step('Checking Superpowers ...');
-
-    if (!depStatus.superpowers.installed) {
-      logger.warn('Superpowers not installed');
-      logger.info(DEPS.superpowers.installHint);
-      logger.info('Re-run sddflow init after installing, or build phase will use manual fallback');
+    logger.step('[1/4] Checking Superpowers plugin ...');
+    if (depStatus.superpowers.pluginInstalled) {
+      logger.success('Superpowers plugin installed');
     } else {
-      logger.success(`Superpowers installed${depStatus.superpowers.path ? ` (${depStatus.superpowers.path})` : ''}`);
+      logger.warn('Superpowers plugin not found');
     }
 
-    if (installGlobally) {
-      logger.step('Skipping project OpenSpec initialization for global install');
-    } else {
-      // Step 3: Check if OpenSpec is initialized in project
-      logger.step('Checking project OpenSpec initialization ...');
-      if (!checkOpenSpecInitialized(cwd)) {
-        if (depStatus.openspec.installed) {
-          const { initOpenSpec } = await inquirer.prompt([
-            {
-              type: 'confirm',
-              name: 'initOpenSpec',
-              message: 'OpenSpec not initialized in this project. Run openspec init?',
-              default: true,
-            },
-          ]);
+    const componentFailures = validateComponentInstallation(depStatus, tools);
+    if (componentFailures.length > 0) {
+      printInitPrerequisiteFailures(componentFailures);
+      process.exit(1);
+    }
 
-          if (initOpenSpec) {
-            const toolsFlag = tools.map((t: string) => t).join(',');
-            exec(`openspec init --tools ${toolsFlag}`, { stdio: 'inherit' });
-            logger.success('OpenSpec project initialized');
-          }
-        } else {
-          logger.info('OpenSpec not initialized — directories will be auto-created on first /sddflow proposal');
-        }
+    // ── 阶段 2：检测 Superpowers 必需 skills ──
+    logger.step('[2/4] Checking Superpowers required skills ...');
+    for (const skill of depStatus.superpowers.skills) {
+      if (skill.installed) {
+        logger.success(`  /${skill.name}${skill.path ? ` (${skill.path})` : ''}`);
       } else {
-        logger.success('OpenSpec project initialized');
+        logger.warn(`  /${skill.name} — missing`);
       }
     }
 
-    // Step 4: Generate skills
+    const skillFailures = validateSuperpowersSkills(depStatus, tools);
+    if (skillFailures.length > 0) {
+      printInitPrerequisiteFailures(skillFailures);
+      process.exit(1);
+    }
+
+    // ── 阶段 3：自动执行 openspec init ──
+    if (installGlobally) {
+      logger.step('[3/4] Skipping project OpenSpec init for global install');
+    } else {
+      logger.step('[3/4] Running openspec init ...');
+      let integrity = verifyOpenSpecInitIntegrity(cwd, tools);
+
+      if (integrity.ok) {
+        logger.success('OpenSpec already initialized in this project');
+      } else {
+        logger.info(`Running: openspec init --tools ${tools.join(',')}`);
+        const ok = runOpenSpecInit(cwd, tools);
+        if (!ok) {
+          printInitPrerequisiteFailures([
+            {
+              id: 'openspec-init',
+              name: 'OpenSpec Init',
+              reason: 'openspec init 执行失败',
+              installSteps: [
+                `请手动执行: openspec init --tools ${tools.join(',')}`,
+                `完成后重新运行: sddflow init --tools ${tools.join(',')}`,
+              ],
+            },
+          ]);
+          process.exit(1);
+        }
+        logger.success('openspec init completed');
+      }
+
+      // ── 阶段 4：校验 OpenSpec 初始化完整性 ──
+      logger.step('[4/4] Verifying OpenSpec init integrity ...');
+      integrity = verifyOpenSpecInitIntegrity(cwd, tools);
+
+      if (!integrity.ok) {
+        printIntegrityFailures(integrity, tools);
+        process.exit(1);
+      }
+
+      logger.success('OpenSpec init integrity check passed');
+      for (const tool of tools) {
+        const markers = OPENSPEC_INIT_MARKERS[tool] ?? [];
+        for (const marker of markers) {
+          const { fileExists: fe } = await import('../utils/shell.js');
+          const fp = path.join(cwd, marker);
+          if (fe(fp)) {
+            logger.info(`  ✓ ${marker}`);
+            break;
+          }
+        }
+      }
+    }
+
+    // ── 生成 sddflow skills ──
     logger.step('Generating sddflow skills ...');
+    depStatus = checkDependencies({ cwd, tools });
     generateSkills({ cwd, tools, depStatus, global: installGlobally });
 
     if (!installGlobally) {
-      // Step 5: Write state
       writeState(cwd, {
         openspec: depStatus.openspec.installed,
-        superpowers: depStatus.superpowers.installed,
-        openspecProjectInitialized: checkOpenSpecInitialized(cwd),
+        superpowers: depStatus.superpowers.allSkillsInstalled,
+        openspecProjectInitialized: verifyOpenSpecInitIntegrity(cwd, tools).ok,
         createdAt: new Date().toISOString(),
         tools,
       });
@@ -106,13 +152,11 @@ export const initCommand = new Command('init')
     logger.blank();
     logger.success('sddflow initialized!');
     logger.blank();
-
-    if (!depStatus.superpowers.installed) {
-      logger.warn('Note: Superpowers not installed — /sddflow build will use manual execution mode');
-      logger.info(`  Install with: ${DEPS.superpowers.installHint}`);
-      logger.blank();
+    logger.info(`Verified Superpowers skills (${SUPERPOWERS_REQUIRED_SKILLS.length}):`);
+    for (const skill of SUPERPOWERS_REQUIRED_SKILLS) {
+      logger.info(`  /${skill}`);
     }
-
+    logger.blank();
     logger.info('Available commands:');
     logger.info('  /sddflow proposal      Quick requirement capture');
     logger.info('  /sddflow brainstorming  Deep design exploration');

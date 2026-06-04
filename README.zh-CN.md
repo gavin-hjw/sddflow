@@ -19,11 +19,14 @@ cd your-project
 sddflow init --tools claude
 ```
 
-`init` 会自动：
-1. 检测并引导安装 OpenSpec CLI
-2. 检测 Superpowers 并提示安装方式
-3. 检测项目 OpenSpec 初始化状态
-4. 生成 sddflow skills 到所选工具的项目级 skill 目录，如 `.claude/skills/sddflow/`、`.codex/skills/sddflow/`、`.cursor/skills/sddflow/` 或 `.opencode/commands/sddflow/`
+`init` 按四阶段执行：
+
+1. **[1/4] 组件检测**：OpenSpec CLI + Superpowers 插件（缺失则中止并提示安装）
+2. **[2/4] Skill 检测**：6 个必需 Superpowers skills（`/brainstorming`、`/writing-plans`、`/subagent-driven-development`、`/test-driven-development`、`/verification-before-completion`、`/finishing-a-development-branch`）
+3. **[3/4] 自动初始化**：自动执行 `openspec init --tools <tools>`（使用外层传入的 `--tools` 参数）
+4. **[4/4] 完整性校验**：验证 `openspec/AGENTS.md`、`openspec/project.md` 及 `.claude/commands/openspec/*.md` 等文件
+
+全部通过后生成 sddflow skills 到所选工具的项目级 skill 目录
 
 支持的工具：`claude`、`codex`、`cursor`、`opencode`（逗号分隔，如 `--tools claude,codex`）
 
@@ -78,20 +81,21 @@ OpenCode 保持原生命令树形式，例如 `/sddflow/spec`、`/sddflow/build`
 ## 依赖策略
 
 ```
-Best with: OpenSpec + Superpowers
-Works without them: yes, with manual-file fallback
+Requires: OpenSpec CLI + OpenSpec skill integration + Superpowers writing-plans skill
+Init blocked until all are installed
 ```
 
-| 依赖 | 安装方式 | 缺失时降级 |
-|------|----------|-----------|
-| OpenSpec | `npm install -g @fission-ai/openspec@latest` | 手动创建 `openspec/changes/` 目录和文件 |
-| Superpowers | `/plugin install superpowers@claude-plugins-official` | build 阶段手动拆解 plan-ready.md 步骤执行 |
+| 依赖 | 安装方式 | init 缺失时 |
+|------|----------|-------------|
+| OpenSpec CLI | `npm install -g @fission-ai/openspec@latest` | 中止 init，提示安装 CLI |
+| OpenSpec Skill | `openspec init --tools <tools>` | 中止 init，提示运行 openspec init |
+| Superpowers | `/plugin install superpowers@claude-plugins-official`（Claude Code）等 | 中止 init，提示安装插件 |
 
 ### 双层依赖保障
 
 | 层 | 机制 | 缺失时 |
 |----|------|--------|
-| **init 时** | 从 `PATH` 检测 OpenSpec CLI；从 `./openspec/` 检测当前项目 OpenSpec；从所选工具的本地/全局 skill 目录检测 Superpowers | 不阻断，继续生成 skills |
+| **init 时** | 严格检测 OpenSpec CLI、OpenSpec 工具集成文件、Superpowers writing-plans skill | **中止初始化**，输出分步安装指引 |
 | **运行时** | SKILL.md 注入依赖检测段 | build 阶段降级为手动拆解步骤执行 |
 
 ## 架构

@@ -1,7 +1,11 @@
 import { Command } from 'commander';
 import path from 'path';
 import fs from 'fs';
-import { checkDependencies, readState, checkOpenSpecInitialized } from '../core/dependency-check.js';
+import {
+  checkDependencies,
+  readState,
+  verifyOpenSpecInitIntegrity,
+} from '../core/dependency-check.js';
 import { logger } from '../utils/logger.js';
 import { dirExists } from '../utils/shell.js';
 
@@ -16,7 +20,6 @@ export const statusCommand = new Command('status')
 
     const state = readState(cwd);
 
-    // Dependencies
     logger.step('Dependencies:');
     const depStatus = checkDependencies({ cwd, tools: state?.tools });
 
@@ -26,15 +29,22 @@ export const statusCommand = new Command('status')
       logger.warn('OpenSpec CLI — not installed');
     }
 
-    if (depStatus.superpowers.installed) {
-      logger.success(`Superpowers${depStatus.superpowers.path ? ` (${depStatus.superpowers.path})` : ''}`);
+    if (depStatus.superpowers.pluginInstalled) {
+      logger.success('Superpowers plugin');
     } else {
-      logger.warn('Superpowers — not installed (build phase will use manual mode)');
+      logger.warn('Superpowers plugin — not installed');
+    }
+
+    for (const skill of depStatus.superpowers.skills) {
+      if (skill.installed) {
+        logger.success(`  /${skill.name}${skill.path ? ` (${skill.path})` : ''}`);
+      } else {
+        logger.warn(`  /${skill.name} — missing`);
+      }
     }
 
     logger.blank();
 
-    // Project state
     logger.step('Project:');
 
     if (state) {
@@ -45,15 +55,18 @@ export const statusCommand = new Command('status')
       return;
     }
 
-    if (checkOpenSpecInitialized(cwd)) {
-      logger.success('OpenSpec project initialized');
+    const integrity = verifyOpenSpecInitIntegrity(cwd, state.tools);
+    if (integrity.ok) {
+      logger.success('OpenSpec project initialized (integrity OK)');
     } else {
-      logger.warn('OpenSpec project not initialized');
+      logger.warn(`OpenSpec init incomplete — missing ${integrity.missing.length} file(s)`);
+      for (const file of integrity.missing) {
+        logger.info(`  - ${file}`);
+      }
     }
 
     logger.blank();
 
-    // Active changes
     logger.step('Active changes:');
     const changesDir = path.join(cwd, 'openspec', 'changes');
 

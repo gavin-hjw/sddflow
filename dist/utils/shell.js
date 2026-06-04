@@ -4,11 +4,19 @@ export function exec(cmd, options) {
         return execSync(cmd, {
             encoding: 'utf-8',
             stdio: options?.stdio ?? 'pipe',
+            cwd: options?.cwd,
         }).trim();
     }
     catch {
         return '';
     }
+}
+export function execOrThrow(cmd, options) {
+    execSync(cmd, {
+        encoding: 'utf-8',
+        stdio: options?.stdio ?? 'inherit',
+        cwd: options?.cwd,
+    });
 }
 import fs from 'fs';
 export function cmdExists(cmd) {

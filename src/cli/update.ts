@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { checkDependencies, readState, writeState, checkOpenSpecInitialized } from '../core/dependency-check.js';
+import { checkDependencies, readState, writeState, verifyOpenSpecInitIntegrity } from '../core/dependency-check.js';
 import { generateSkills } from '../core/skill-generator.js';
 import { logger } from '../utils/logger.js';
 
@@ -28,8 +28,8 @@ export const updateCommand = new Command('update')
     writeState(cwd, {
       ...state,
       openspec: depStatus.openspec.installed,
-      superpowers: depStatus.superpowers.installed,
-      openspecProjectInitialized: checkOpenSpecInitialized(cwd),
+      superpowers: depStatus.superpowers.allSkillsInstalled,
+      openspecProjectInitialized: verifyOpenSpecInitIntegrity(cwd, state.tools).ok,
     });
 
     logger.blank();
