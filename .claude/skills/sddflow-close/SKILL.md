@@ -1,6 +1,6 @@
 ---
 name: sddflow-close
-description: "SDDFlow close: Verify consistency and archive. Visibility alias for sddflow close."
+description: "SDDFlow close: Verify implementation, code review, opsx:verify, opsx:archive, finish branch. Visibility alias for sddflow close."
 argument-hint: "[optional context]"
 ---
 
