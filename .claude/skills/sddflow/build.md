@@ -9,17 +9,33 @@ description: Call Superpowers to execute implementation, supports checkpoint rec
 
 ### 0. 依赖检测
 
-执行前检查以下依赖是否可用：
+执行前必须**严格按以下顺序**检测依赖，**不可跳过**：
 
-| 依赖 | 检测方式 | 不可用时 |
-|------|----------|----------|
-| Superpowers writing-plans | 当前工具的本地或全局 skills 目录下是否存在 `writing-plans/SKILL.md` | 降级为手动拆解 plan-ready.md 中的步骤，逐条执行 |
-| OpenSpec CLI | `openspec` 命令是否可执行 | 不影响 build 阶段，但 close 阶段归档需手动 mv |
+#### 0.1 检测 Superpowers writing-plans skill
 
-如果 Superpowers 不可用，提示用户：
-> "Superpowers 未安装，build 将使用手动执行模式。安装后体验更佳：请在当前工具中安装 Superpowers writing-plans skill（Claude Code: /plugin install superpowers@claude-plugins-official）"
+按以下顺序搜索 `writing-plans/SKILL.md`，找到即停止：
 
-如果 Superpowers 可用，调用其 `writing-plans` skill 生成详细实现计划。
+1. 项目本地 skills：`<项目根>/.claude/skills/writing-plans/SKILL.md`
+2. 用户全局 skills：`~/.claude/skills/writing-plans/SKILL.md`
+3. 全局 plugins 缓存（仅限 Claude Code）：`~/.claude/plugins/cache/claude-plugins-official/superpowers/*/skills/writing-plans/SKILL.md`（取最高版本）
+
+**任一路径存在即视为可用，不要只搜了一个路径就判定不可用。**
+
+检测结果记录到表格：
+
+| 依赖 | 检测方式 | 可用 | 不可用时 |
+|------|----------|------|----------|
+| Superpowers writing-plans | 按上述 3 个路径依次搜索 `writing-plans/SKILL.md` | 调用 writing-plans skill | 降级为手动模式（见下方） |
+| OpenSpec CLI | `openspec` 命令是否可执行 | — | 不影响 build 阶段，但 close 阶段归档需手动 mv |
+
+**降级模式（仅 writing-plans 确实不可用时）：**
+提示用户：
+> "Superpowers 未安装，build 将使用手动执行模式。安装后体验更佳：Claude Code 中执行 `/plugin install superpowers@claude-plugins-official`"
+
+降级时仍需按 3. 中的模板手动生成 plan 文件，不可跳过文件生成直接写代码。
+
+**正常模式（writing-plans 可用时）：**
+直接调用 `writing-plans` skill，以 `plan-ready.md` 为输入生成详细实现计划。
 
 
 读取 plan-ready.md，调用 Superpowers 的 writing-plans 生成详细实现计划，然后按 TDD 铁律执行。
@@ -59,28 +75,52 @@ description: Call Superpowers to execute implementation, supports checkpoint rec
 - 部分勾选 → 从未完成的 task 继续执行
 - 无勾选 → 从头开始
 
-### 3. 生成详细实现计划
+### 3. 生成详细实现计划（必须完成后再进入步骤 4）
 
-调用 Superpowers 的 `writing-plans` skill，以 `plan-ready.md` 为输入，生成符合 Superpowers 格式的详细实现计划。
+**此步骤不可跳过、不可省略。** 必须先产生 plan 文件，再按 plan 执行代码。
 
-每个步骤：
+- 如果 writing-plans 可用：调用 `writing-plans` skill，以 `plan-ready.md` 为输入
+- 如果降级模式：手动按下方模板拆解 plan-ready.md 中的步骤，写入 plan 文件
+
+每个步骤要求：
 - 2-5 分钟工作量
-- 包含代码、文件路径、验证命令
+- 包含完整代码（不允许 TODO/TBD/占位符）、文件路径、验证命令
 - 使用 checkbox 语法 `- [ ]` 跟踪
 
-将实现计划保存到：
+**Plan 文件必须保存到：**
 ```
 docs/superpowers/plans/YYYY-MM-DD-<变更名>.md
 ```
 
-### 4. 执行实现
+**Plan 文件必须包含以下头部：**
+```markdown
+# [功能名称] 实现计划
 
-按照 Superpowers 的执行流程：
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [一句话描述要构建什么]
+
+**Architecture:** [2-3 句话描述方案]
+
+**Tech Stack:** [关键技术/库]
+```
+
+**自检：完成步骤 3 后，必须确认以下全部为真，才允许进入步骤 4：**
+- [ ] `docs/superpowers/plans/` 目录下存在对应的 `.md` 文件
+- [ ] 文件中包含 checkbox 列表（至少 3 个 task）
+- [ ] 文件中没有 "TODO"、"TBD"、"实现待定" 字样
+
+**如果自检不通过，停留在步骤 3 修复，禁止进入步骤 4。**
+
+### 4. 执行实现（按步骤 3 生成的 plan 文件逐条执行）
+
+**执行前先打开步骤 3 生成的 plan 文件**，按其 checkbox 顺序逐条执行，每完成一条就勾选。
 
 1. **TDD 铁律**：先写失败测试，再写实现代码
 2. **每个 task 一个 commit**
 3. 多任务可派子代理并行（参见 subagent-driven-development skill）
 4. 编译/测试不通过不让提交
+5. **每完成一个 step，立即勾选对应 checkbox**，不允许全部做完后批量勾选
 
 ### 5. 执行完成
 
