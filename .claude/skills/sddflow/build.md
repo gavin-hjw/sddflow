@@ -9,17 +9,19 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 
 ### 0. 依赖检测
 
-执行前检查以下依赖是否可用：
+执行前检查以下依赖是否可用（**不在 build 阶段生成或重写计划文件**）：
 
 | 依赖 | 检测方式 | 不可用时 |
 |------|----------|----------|
-| Superpowers writing-plans | 当前工具的本地或全局 skills 目录下是否存在 `writing-plans/SKILL.md` | 降级为手动拆解 plan-ready.md 中的步骤，逐条执行 |
-| OpenSpec CLI | `openspec` 命令是否可执行 | 不影响 build 阶段，但 close 阶段归档需手动 mv |
+| 详细实现计划 | `docs/superpowers/plans/` 下存在含变更名的 `.md` 文件 | **终止 build**，提示先完成 `/sddflow spec` |
+| Superpowers subagent-driven-development | skills 目录下是否存在 `subagent-driven-development/SKILL.md` | 降级为按 plan 文件逐步手动执行 |
+| Superpowers test-driven-development | skills 目录下是否存在 `test-driven-development/SKILL.md` | 提示安装；仍按 plan 执行，须自述遵守 TDD |
+| OpenSpec CLI | `openspec` 命令是否可执行 | 不影响 build；close 归档可改用 `OpenSpec: Archive` 或 `openspec archive` |
 
-如果 Superpowers 不可用，提示用户：
-> "Superpowers 未安装，build 将使用手动执行模式。安装后体验更佳：请在当前工具中安装 Superpowers 插件"
+如果 Superpowers 子技能缺失，提示用户：
+> "Superpowers 未完整安装，build 将使用手动执行模式。安装后体验更佳：请在当前工具中安装 Superpowers 插件"
 
-如果 Superpowers 可用，调用其 `writing-plans` skill 生成详细实现计划。
+**禁止**在 build 阶段调用 `writing-plans`；计划必须在 spec 阶段已生成。
 
 
 严格校验 spec 阶段产出的所有文件完整性，通过后用 `subagent-driven-development` 逐 Task 派发子代理执行，每个子代理强制遵循 `test-driven-development` 铁律。

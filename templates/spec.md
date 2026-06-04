@@ -207,7 +207,7 @@ docs/superpowers/plans/YYYY-MM-DD-<变更名>.md
 写完 plan 文件后执行，全部为真才允许进入步骤 6：
 
 - [ ] `docs/superpowers/plans/` 下存在对应 `.md` 文件
-- [ ] 文件中至少包含 3 个 Task
+- [ ] 文件中至少包含 1 个 Task，且数量与 `tasks.md` 中待实现条目一致
 - [ ] 文件中没有 "TODO"、"TBD"、"实现待定" 字样
 - [ ] 每个 Task 都有 `> **sync:**` 标注，与 tasks.md 条目一一对应
 - [ ] 每个 Step 包含完整代码块（无占位符）

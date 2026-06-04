@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import path from 'path';
 import fs from 'fs';
 import { checkDependencies, readState, verifyOpenSpecInitIntegrity, } from '../core/dependency-check.js';
+import { formatChangeWorkflowStatus, getChangeWorkflowStatus } from '../core/change-status.js';
 import { logger } from '../utils/logger.js';
 import { dirExists } from '../utils/shell.js';
 export const statusCommand = new Command('status')
@@ -68,20 +69,8 @@ export const statusCommand = new Command('status')
         return;
     }
     for (const entry of entries) {
-        const changeDir = path.join(changesDir, entry.name);
-        const hasPlanReady = fs.existsSync(path.join(changeDir, 'plan-ready.md'));
-        const hasProposal = fs.existsSync(path.join(changeDir, 'proposal.md'));
-        let status = '';
-        if (hasPlanReady) {
-            status = '→ ready for /sddflow build or /sddflow amend';
-        }
-        else if (hasProposal) {
-            status = '→ needs /sddflow spec';
-        }
-        else {
-            status = '→ needs /sddflow proposal';
-        }
-        logger.info(`  ${entry.name} ${status}`);
+        const workflowStatus = getChangeWorkflowStatus(cwd, entry.name);
+        logger.info(`  ${entry.name} ${formatChangeWorkflowStatus(workflowStatus)}`);
     }
     logger.blank();
 });

@@ -102,56 +102,75 @@ npm run build / cargo build --release / ...
 
 ---
 
-## 阶段 3：OpenSpec 验证（/opsx:verify）
+## 阶段 3：规格一致性验证
 
-> **使用 OpenSpec `/opsx:verify <变更名>` 命令**
+> 本项目无 `/opsx:verify` 命令；按下列步骤手工验证，并配合 OpenSpec CLI。
 
-调用 `opsx:verify`，它会三维度检查：
+### 3.1 CLI 校验（如可用）
+
+```bash
+openspec validate <变更名> --strict
+```
+
+校验失败 → 修正规格或实现后重新 close。
+
+### 3.2 三维度对照（记录到 `openspec/changes/<变更名>/close-issues.md`）
 
 | 维度 | 检查内容 |
 |------|----------|
-| **Completeness** | tasks.md checkbox 全部 `[x]`；所有规格需求已实现 |
-| **Correctness** | 实现与规格需求、scenario 覆盖一致 |
-| **Coherence** | 代码遵循 design.md 决策；符合项目模式 |
+| **Completeness** | `tasks.md` checkbox 全部 `[x]`；plan 文件 checkbox 全部 `[x]`；所有规格需求有实现证据 |
+| **Correctness** | 实现与 `specs/**/spec.md` 中 Requirement、Scenario 一致 |
+| **Coherence** | 代码遵循 `design.md` 决策；符合项目既有模式 |
 
-**处理 verify 结果：**
+### 3.3 处理结果
 
 | 等级 | 处理方式 |
 |------|----------|
-| CRITICAL | 终止 close；不一致记录到 `openspec/changes/<变更名>/close-issues.md`；提示用 `/sddflow amend` + `/sddflow build` 修复后重新 close |
+| CRITICAL | 终止 close；写入 `close-issues.md`；提示 `/sddflow amend` + `/sddflow build` 后重新 close |
 | WARNING | 展示给用户，询问是否修复；用户确认后可继续归档 |
 | SUGGESTION | 记录到 `close-issues.md`，不阻塞归档 |
 
 **存在 CRITICAL 时输出：**
-> "OpenSpec 验证失败，存在 N 个 CRITICAL 问题（见 close-issues.md）。请用 `/sddflow amend` 修订需求或用 `/sddflow build` 补充实现后再执行 close。"
+> "规格验证失败，存在 N 个 CRITICAL 问题（见 close-issues.md）。请用 `/sddflow amend` 修订需求或用 `/sddflow build` 补充实现后再执行 close。"
 
 ---
 
-## 阶段 4：归档（/opsx:archive + openspec/specs 同步）
+## 阶段 4：归档（OpenSpec: Archive + openspec/specs 同步）
 
-> **使用 OpenSpec `/opsx:archive <变更名>` 命令**
+> **优先使用 Cursor/Claude 命令 `OpenSpec: Archive`，或 OpenSpec CLI `openspec archive`**
 
 ### 4.1 前置确认
 
 阶段 3 通过（无 CRITICAL）后，向用户确认：
 
 > "验证通过。准备归档变更 `<变更名>`。此操作将：
-> 1. 将 delta specs 同步合并到 `openspec/specs/`
+> 1. 将 delta specs 同步合并到 `openspec/specs/`（除非明确为纯工具变更）
 > 2. 将 `openspec/changes/<变更名>/` 移动到 `openspec/changes/archive/YYYY-MM-DD-<变更名>/`
 >
 > 确认归档？"
 
 ### 4.2 执行归档
 
-调用 `/opsx:archive <变更名>`，它会：
+**方式 A — 编辑器命令（推荐）：** 调用 `OpenSpec: Archive`，按提示选择变更 ID。
 
-1. 检查所有 artifact 完成状态
-2. 检查 tasks.md 所有条目为 `[x]`
-3. **评估 delta specs 与 `openspec/specs/` 的差异**
-4. **同步 delta specs 到 `openspec/specs/<capability>/spec.md`**（推荐同步）
-5. 将变更目录移动到 archive
+**方式 B — CLI：**
 
-**specs 同步策略：** 选择"Sync now（推荐）"，确保主规格库反映本次变更。
+```bash
+openspec archive <变更名> --yes
+```
+
+归档流程应完成：
+
+1. 检查所有 artifact 与 `tasks.md` 完成状态
+2. 评估 delta specs 与 `openspec/specs/` 的差异
+3. 同步 delta specs 到 `openspec/specs/<capability>/spec.md`（推荐；纯工具变更可用 `--skip-specs`）
+4. 将变更目录移入 `openspec/changes/archive/`
+
+归档后运行（如 CLI 可用）：
+
+```bash
+openspec validate --strict
+```
 
 ### 4.3 确认归档结果
 

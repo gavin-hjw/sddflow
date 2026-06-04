@@ -149,21 +149,23 @@ argument-hint: "[optional context]"
 `;
 }
 
-function injectRuntimeDepCheck(content: string, depStatus: DepStatus): string {
+function injectRuntimeDepCheck(content: string, _depStatus: DepStatus): string {
   const checkSection = `
 ### 0. 依赖检测
 
-执行前检查以下依赖是否可用：
+执行前检查以下依赖是否可用（**不在 build 阶段生成或重写计划文件**）：
 
 | 依赖 | 检测方式 | 不可用时 |
 |------|----------|----------|
-| Superpowers writing-plans | 当前工具的本地或全局 skills 目录下是否存在 \`writing-plans/SKILL.md\` | 降级为手动拆解 plan-ready.md 中的步骤，逐条执行 |
-| OpenSpec CLI | \`openspec\` 命令是否可执行 | 不影响 build 阶段，但 close 阶段归档需手动 mv |
+| 详细实现计划 | \`docs/superpowers/plans/\` 下存在含变更名的 \`.md\` 文件 | **终止 build**，提示先完成 \`/sddflow spec\` |
+| Superpowers subagent-driven-development | skills 目录下是否存在 \`subagent-driven-development/SKILL.md\` | 降级为按 plan 文件逐步手动执行 |
+| Superpowers test-driven-development | skills 目录下是否存在 \`test-driven-development/SKILL.md\` | 提示安装；仍按 plan 执行，须自述遵守 TDD |
+| OpenSpec CLI | \`openspec\` 命令是否可执行 | 不影响 build；close 归档可改用 \`OpenSpec: Archive\` 或 \`openspec archive\` |
 
-如果 Superpowers 不可用，提示用户：
-> "Superpowers 未安装，build 将使用手动执行模式。安装后体验更佳：${DEPS.superpowers.installHint}"
+如果 Superpowers 子技能缺失，提示用户：
+> "Superpowers 未完整安装，build 将使用手动执行模式。安装后体验更佳：${DEPS.superpowers.installHint}"
 
-如果 Superpowers 可用，调用其 \`writing-plans\` skill 生成详细实现计划。
+**禁止**在 build 阶段调用 \`writing-plans\`；计划必须在 spec 阶段已生成。
 `;
 
   // Insert after the first heading
@@ -177,15 +179,18 @@ function injectRuntimeDepCheck(content: string, depStatus: DepStatus): string {
   return lines.join('\n');
 }
 
-function injectSpecRuntimeCheck(content: string, depStatus: DepStatus): string {
-  const checkNote = `
-> **OpenSpec 检测**：根据 proposal.md 生成 design.md + specs/ + tasks.md；如果 \`openspec\` CLI 可用，生成后运行 \`openspec validate <变更名> --strict\` 校验。
-`;
+function injectSpecRuntimeCheck(content: string, _depStatus: DepStatus): string {
+  const checkNote =
+    '> **OpenSpec 检测**：根据 proposal.md 生成 design.md + specs/ + tasks.md；如果 `openspec` CLI 可用，生成后运行 `openspec validate <变更名> --strict` 校验。';
 
   const lines = content.split('\n');
-  const validateIdx = lines.findIndex((l) => l.includes('openspec validate'));
-  if (validateIdx >= 0) {
-    lines.splice(validateIdx, 0, checkNote);
+  const bashIdx = lines.findIndex(
+    (line, i) =>
+      line.trim() === '```bash' &&
+      lines.slice(i + 1, i + 4).some((l) => l.includes('openspec validate')),
+  );
+  if (bashIdx >= 0 && !lines.slice(Math.max(0, bashIdx - 3), bashIdx).some((l) => l.includes('OpenSpec 检测'))) {
+    lines.splice(bashIdx, 0, '', checkNote, '');
   }
   return lines.join('\n');
 }
@@ -212,6 +217,13 @@ argument-hint: “proposal | brainstorming | spec | amend | build | close”
 4. 只有用户显式调用 \`/sddflow build\`，或状态检测明确进入 build 阶段后，才允许修改代码或实现文件
 5. 中断后恢复时，先重新读取当前阶段文件和 \`openspec/changes/\` 状态，再继续执行
 
+**路由优先级（高于文件状态推断）：**
+
+1. **续接回复** — 无显式子命令时，保持上一 sddflow 阶段；不因目录中已有 \`plan-ready.md\` 而自动进入 build
+2. **显式子命令** — 用户指定 \`/sddflow <phase>\` 时，按该阶段执行并检查前置条件
+3. **裸 \`/sddflow\`** — 仅此时执行「状态检测」自动路由
+4. **build 中需求变更** — 路由到 amend
+
 典型场景：
 - proposal 阶段整理需求后，用户补充“运营端也要做回显”。这仍是需求范围修正，必须继续 proposal 文档收敛，不能直接进入代码实现。
 - brainstorming 阶段询问“是否只覆盖企业端？”后，用户回复“运营端也要做回显”。这仍是设计范围修正，必须继续 brainstorming/proposal 文档收敛，不能直接进入代码实现。
@@ -222,9 +234,9 @@ argument-hint: “proposal | brainstorming | spec | amend | build | close”
 |------|----------|----------|
 | proposal | \`openspec/changes/**/proposal.md\` | 任何代码或实现文件 |
 | brainstorming | \`openspec/changes/**/proposal.md\` | 任何代码或实现文件 |
-| spec | \`openspec/changes/**\`、\`plan-ready.md\` | 任何代码或实现文件 |
+| spec | \`openspec/changes/**\`、\`plan-ready.md\`、\`docs/superpowers/plans/*.md\` | 任何代码或实现文件 |
 | amend | \`openspec/changes/**\`、\`plan-ready.md\`、\`docs/superpowers/plans/*.md\` | 代码、测试、其他实现文件 |
-| build | 代码、测试、实现计划状态 | 规格文档（除非另开变更） |
+| build | 代码、测试、实现计划 checkbox 状态 | 规格文档（除非另开变更）；勿运行 OpenSpec Apply |
 | close | 归档、验证记录、\`close-issues.md\` | 代码、测试、其他实现文件 |
 
 如果用户在 proposal/brainstorming/spec/amend 阶段提出“就按这个做”“范围改成 X”“继续”等话术，不代表进入 build；必须先完成该阶段文档产物并提示下一步。
@@ -262,10 +274,10 @@ argument-hint: “proposal | brainstorming | spec | amend | build | close”
 
 根据子命令或状态检测结果，读取对应阶段文件并执行：
 
-1. 如果这是上一 sddflow 阶段的续接回复，先按”续接与中断恢复”保持阶段
+1. 如果这是上一 sddflow 阶段的续接回复，先按”续接与中断恢复”保持阶段（不得因已有 plan-ready.md 覆盖为 build）
 2. 如果用户在 build 中明确提出需求变更、补充 spec、修改验收条件或重新生成规格，路由到 amend
-3. 如果用户指定了子命令（如 \`/sddflow build\`），优先按指定阶段执行，但检查前置条件
-4. 如果用户只输入 \`/sddflow\`，执行状态检测，自动路由到对应阶段
+3. 如果用户指定了子命令（如 \`/sddflow build\`），按指定阶段执行，但检查前置条件
+4. 如果用户只输入 \`/sddflow\`（无子命令、非续接），执行状态检测，自动路由到对应阶段
 5. 读取当前 sddflow skill 目录下的阶段文件：\`<阶段>.md\`（与本 \`SKILL.md\` 同目录；不要依赖 Claude 专属环境变量）
 6. 按阶段文件中的流程执行，并遵守阶段写入边界
 

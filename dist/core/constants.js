@@ -34,17 +34,25 @@ export const OPENSPEC_INIT_MARKERS = {
     claude: [
         '.claude/skills/openspec-propose/SKILL.md',
         '.claude/commands/opsx/propose.md',
+        '.claude/commands/openspec/proposal.md',
+        '.claude/commands/openspec/archive.md',
     ],
     cursor: [
         '.cursor/skills/openspec-propose/SKILL.md',
         '.cursor/commands/opsx/propose.md',
+        '.cursor/commands/openspec/proposal.md',
+        '.cursor/commands/openspec/archive.md',
     ],
     codex: [
         '.codex/skills/openspec-propose/SKILL.md',
         '.codex/commands/opsx/propose.md',
+        '.codex/commands/openspec/proposal.md',
+        '.codex/commands/openspec/archive.md',
     ],
     opencode: [
         '.opencode/commands/opsx/propose.md',
+        '.opencode/commands/openspec/proposal.md',
+        '.opencode/commands/openspec/archive.md',
     ],
 };
 /** 各工具安装 Superpowers 的具体指引 */
