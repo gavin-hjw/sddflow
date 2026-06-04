@@ -1,102 +1,81 @@
 ---
 name: sddflow/build
-description: Call Superpowers to execute implementation, supports checkpoint recovery
+description: Execute implementation using Superpowers writing-plans + subagent-driven-development + TDD
 ---
 
 # Build: Superpowers 执行
 
 ## 目标
 
-### 0. 依赖检测
-
-执行前必须**严格按以下顺序**检测依赖，**不可跳过**：
-
-#### 0.1 检测 Superpowers writing-plans skill
-
-按以下顺序搜索 `writing-plans/SKILL.md`，找到即停止：
-
-1. 项目本地 skills：`<项目根>/.claude/skills/writing-plans/SKILL.md`
-2. 用户全局 skills：`~/.claude/skills/writing-plans/SKILL.md`
-3. 全局 plugins 缓存（仅限 Claude Code）：`~/.claude/plugins/cache/claude-plugins-official/superpowers/*/skills/writing-plans/SKILL.md`（取最高版本）
-
-**任一路径存在即视为可用，不要只搜了一个路径就判定不可用。**
-
-检测结果记录到表格：
-
-| 依赖 | 检测方式 | 可用 | 不可用时 |
-|------|----------|------|----------|
-| Superpowers writing-plans | 按上述 3 个路径依次搜索 `writing-plans/SKILL.md` | 调用 writing-plans skill | 降级为手动模式（见下方） |
-| OpenSpec CLI | `openspec` 命令是否可执行 | — | 不影响 build 阶段，但 close 阶段归档需手动 mv |
-
-**降级模式（仅 writing-plans 确实不可用时）：**
-提示用户：
-> "Superpowers 未安装，build 将使用手动执行模式。安装后体验更佳：Claude Code 中执行 `/plugin install superpowers@claude-plugins-official`"
-
-降级时仍需按 3. 中的模板手动生成 plan 文件，不可跳过文件生成直接写代码。
-
-**正常模式（writing-plans 可用时）：**
-直接调用 `writing-plans` skill，以 `plan-ready.md` 为输入生成详细实现计划。
-
-
-读取 plan-ready.md，调用 Superpowers 的 writing-plans 生成详细实现计划，然后按 TDD 铁律执行。
+读取 `plan-ready.md`，用 Superpowers `writing-plans` 生成详细实现计划，再用 `subagent-driven-development` 逐 Task 派发子代理执行，每个子代理强制遵循 `test-driven-development` 铁律。
 
 ## 中断续接规则
 
-如果用户在 build 阶段被打断后继续回复、说"继续"、或补充实现细节，保持 build 阶段并从实现计划/checkbox 状态恢复。不要回到 proposal、brainstorming 或 spec。
-
-如果用户明确要求修改需求、补充 spec、改变验收条件、改变功能边界或重新生成规格，停止实现并切到 `/sddflow amend`。amend 完成后再回到 `/sddflow build`。
+- 被打断后继续回复、说"继续"、或补充实现细节 → 保持 build 阶段，从 plan 文件的 checkbox 状态恢复
+- 用户明确要求修改需求/规格/验收条件/功能边界 → **立即切到 `/sddflow amend`**，amend 完成后再回到 build
 
 ## 前置条件
 
 - `openspec/changes/<变更名>/plan-ready.md` 存在
+- `openspec/changes/<变更名>/tasks.md` 存在
 
-如果不满足，提示：
-> "还没生成 plan-ready.md。请先完成 /sddflow spec。"
+不满足时提示：
+> "还没生成 plan-ready.md。请先完成 `/sddflow spec`。"
 
-## 流程
+---
 
-### 1. 检测状态
+## 阶段 1：检测状态
 
-检查以下文件确定当前状态：
+检查以下文件，确定启动模式：
 
-| 检查 | 怎么查 | 结果 |
-|------|--------|------|
+| 检查项 | 怎么查 | 结果 |
+|--------|--------|------|
 | 有活跃变更？ | `openspec/changes/` 下非 archive 子目录 | 找到变更名 |
-| 有 plan-ready.md？ | 变更目录下是否存在 | 不存在→提示先 spec |
-| 实现已开始？ | `docs/superpowers/plans/` 下是否有对应计划文件 | 已开始→断点恢复 |
+| 有 plan-ready.md？ | 变更目录下是否存在 | 否 → 提示先 spec |
+| plan 文件已存在？ | `docs/superpowers/plans/` 下有对应文件 | 是 → 断点恢复模式 |
 
-如果有多个活跃变更，列出并让用户选择。
+多个活跃变更时列出并让用户选择。
 
-### 2. 断点恢复（如适用）
+### 断点恢复
 
-如果检测到已有计划文件，检查其中 checkbox 状态：
+如检测到已有 plan 文件，读取其中 checkbox 状态：
 
-- 全部勾选 → 提示实现已完成，建议 /sddflow close
-- 部分勾选 → 从未完成的 task 继续执行
-- 无勾选 → 从头开始
+- 全部 `[x]` → 实现已完成，提示 `/sddflow close`
+- 部分 `[x]` → 从第一个未勾选 Task 继续执行（直接进入阶段 3）
+- 全部 `[ ]` → 从头开始（直接进入阶段 3，跳过阶段 2）
 
-### 3. 生成详细实现计划（必须完成后再进入步骤 4）
+---
 
-**此步骤不可跳过、不可省略。** 必须先产生 plan 文件，再按 plan 执行代码。
+## 阶段 2：生成详细实现计划
 
-- 如果 writing-plans 可用：调用 `writing-plans` skill，以 `plan-ready.md` 为输入
-- 如果降级模式：手动按下方模板拆解 plan-ready.md 中的步骤，写入 plan 文件
+> **使用 Superpowers `writing-plans` skill**
 
-每个步骤要求：
-- 2-5 分钟工作量
-- 包含完整代码（不允许 TODO/TBD/占位符）、文件路径、验证命令
-- 使用 checkbox 语法 `- [ ]` 跟踪
+**声明：** 在开始前输出：
+> "正在使用 writing-plans skill 生成实现计划。"
 
-**Plan 文件必须保存到：**
+### 2.1 输入来源
+
+同时读取以下两个文件作为计划输入：
+
+1. `openspec/changes/<变更名>/plan-ready.md` — 翻译好的工程视角需求
+2. `openspec/changes/<变更名>/tasks.md` — OpenSpec 任务清单（每个 Task 必须一一对应）
+
+### 2.2 文件结构规划
+
+在拆分 Task 之前，先列出所有将被创建或修改的文件及其职责。每个文件只有一个清晰的职责。将要一起变更的文件放在同一个 Task 里。
+
+### 2.3 Plan 文件格式
+
+**保存路径：**
 ```
 docs/superpowers/plans/YYYY-MM-DD-<变更名>.md
 ```
 
-**Plan 文件必须包含以下头部：**
+**必须以如下 header 开头：**
 ```markdown
 # [功能名称] 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Each subagent MUST use superpowers:test-driven-development (Red-Green-Refactor cycle). Steps use checkbox (`- [ ]`) syntax for real-time tracking — check off each step IMMEDIATELY after completion, do NOT batch at the end.
 
 **Goal:** [一句话描述要构建什么]
 
@@ -105,83 +84,204 @@ docs/superpowers/plans/YYYY-MM-DD-<变更名>.md
 **Tech Stack:** [关键技术/库]
 
 **来源:**
+- plan-ready.md: openspec/changes/<变更名>/plan-ready.md
 - tasks.md: openspec/changes/<变更名>/tasks.md
+
+---
 ```
 
-**每个 Task 必须标注对应的 tasks.md 条目**，格式如下：
+**每个 Task 结构：**
 ```markdown
 ### Task N: [组件名]
-> **sync:** tasks.md Task N（或 tasks.md 中对应条目的原文摘要）
+
+> **sync:** tasks.md → [对应 tasks.md 条目的原文摘要]
 
 **Files:**
-- Create: `exact/path/to/file.py`
-...
+- Create: `exact/path/to/file`
+- Modify: `exact/path/to/existing:行号范围`
+- Test: `tests/exact/path/to/test`
+
+- [ ] **Step 1: 写失败测试**
+
+  ```语言
+  // 测试代码（完整，不允许占位符）
+  ```
+
+- [ ] **Step 2: 运行测试，确认 FAIL**
+
+  Run: `具体命令`
+  Expected: FAIL — "[预期失败原因]"
+
+- [ ] **Step 3: 写最小实现代码**
+
+  ```语言
+  // 实现代码（完整，不允许占位符）
+  ```
+
+- [ ] **Step 4: 运行测试，确认 PASS**
+
+  Run: `具体命令`
+  Expected: PASS, all N tests green
+
+- [ ] **Step 5: Refactor（如需要）**
+
+- [ ] **Step 6: Commit**
+
+  ```bash
+  git add [文件列表]
+  git commit -m "feat: [具体描述]"
+  ```
 ```
 
-**自检：完成步骤 3 后，必须确认以下全部为真，才允许进入步骤 4：**
-- [ ] `docs/superpowers/plans/` 目录下存在对应的 `.md` 文件
-- [ ] 文件中包含 checkbox 列表（至少 3 个 task）
+### 2.4 禁止占位符
+
+以下内容**绝对禁止**出现在 plan 文件中：
+
+- "TBD"、"TODO"、"实现待定"、"implement later"
+- "Add appropriate error handling"（需写出具体代码）
+- "Write tests for the above"（需写出测试代码）
+- "Similar to Task N"（直接重复代码）
+- 引用了但未定义的类型、函数、方法名
+
+### 2.5 自检（写完 plan 文件后必须执行）
+
+以下全部为真才允许进入阶段 3，否则回到 2.3 修复：
+
+- [ ] `docs/superpowers/plans/` 下存在对应的 `.md` 文件
+- [ ] 文件 checkbox 列表中至少包含 3 个 Task
 - [ ] 文件中没有 "TODO"、"TBD"、"实现待定" 字样
-- [ ] 文件中每个 Task 都有 `> **sync:**` 标注，指向 tasks.md 中对应条目
+- [ ] 每个 Task 都有 `> **sync:**` 标注，与 tasks.md 条目一一对应
+- [ ] 每个 Step 包含完整代码块（无占位符）
 
-**如果自检不通过，停留在步骤 3 修复，禁止进入步骤 4。**
+---
 
-### 4. 执行实现（按步骤 3 生成的 plan 文件逐条执行）
+## 阶段 3：执行实现
 
-**执行前先打开步骤 3 生成的 plan 文件**，按其 checkbox 顺序逐条执行，每完成一条就勾选。
+> **使用 Superpowers `subagent-driven-development` skill**
+> **每个子代理强制遵循 `test-driven-development` skill**
 
-1. **TDD 铁律**：先写失败测试，再写实现代码
-2. **每个 task 一个 commit**
-3. 多任务可派子代理并行（参见 subagent-driven-development skill）
-4. 编译/测试不通过不让提交
-5. **每完成一个 step，立即勾选对应 checkbox**，不允许全部做完后批量勾选
+### 3.1 启动前准备
 
-### 5. checkbox 双向同步（每完成一个 Task 后执行）
+1. **完整读取** plan 文件一次，提取所有 Task（含完整文本）
+2. 用 TodoWrite 创建任务列表，每个 Task 一条，初始状态 `[ ]`
+3. 记录变更名和相关文件路径，供子代理使用
 
-**这是强制步骤，不可跳过。** 每完成 plan 文件中一个完整 Task（该 Task 下所有 step 已全部勾选），立即执行以下同步：
+### 3.2 逐 Task 执行（每个 Task 完整流程）
 
-#### 5.1 Plan → tasks.md 同步
+**连续执行，不在 Task 间停下来询问进度。** 唯一停止原因：BLOCKED 无法解决、真正的歧义阻塞执行、或全部完成。
 
-1. 读取 plan 文件中当前 Task 的 `> **sync:**` 标注，找到对应的 tasks.md 条目
+```
+对每个 Task 按以下顺序执行：
+
+┌─ 派发 Implementer 子代理 ──────────────────────────────────────┐
+│  • 提供 Task 完整文本（不让子代理自己读 plan 文件）             │
+│  • 提供项目上下文（相关文件路径、架构说明、技术栈）             │
+│  • 明确要求：                                                   │
+│    - 必须遵循 test-driven-development (Red → Verify RED         │
+│      → Green → Verify GREEN → Refactor)                        │
+│    - 每完成一个 Step 立即勾选 plan 文件中对应 checkbox          │
+│    - 不允许先做完所有 Step 再批量勾选                           │
+│  • 子代理状态：DONE / DONE_WITH_CONCERNS / NEEDS_CONTEXT        │
+│    / BLOCKED                                                   │
+└────────────────────────────────────────────────────────────────┘
+         ↓ DONE 或 DONE_WITH_CONCERNS
+┌─ 派发 Spec Reviewer 子代理 ────────────────────────────────────┐
+│  • 确认代码满足 plan-ready.md 中对应需求                        │
+│  • ✅ → 进入代码质量审查                                         │
+│  • ❌ → Implementer 修复 → 重新 Spec 审查                        │
+└────────────────────────────────────────────────────────────────┘
+         ↓ ✅
+┌─ 派发 Code Quality Reviewer 子代理 ────────────────────────────┐
+│  • 审查代码质量（命名、结构、耦合、测试覆盖率）                 │
+│  • ✅ → 勾选 plan 文件 Task checkbox → 同步 tasks.md           │
+│  • ❌ → Implementer 修复 → 重新 Quality 审查                    │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**处理子代理状态：**
+
+| 状态 | 处理方式 |
+|------|----------|
+| `DONE` | 进入 Spec 审查 |
+| `DONE_WITH_CONCERNS` | 读取 concerns；正确性/范围问题先解决再审查；观察性问题记录后继续 |
+| `NEEDS_CONTEXT` | 提供缺失上下文，重新派发 |
+| `BLOCKED` | 提供更多上下文重试；仍阻塞则升级给用户 |
+
+**绝不：**
+- 跳过 Spec Compliance 审查
+- 在 Spec 审查通过前进行 Code Quality 审查
+- 让两个 Implementer 子代理同时执行（防止冲突）
+- 接受"差不多符合"（reviewer 有问题 = 未完成）
+
+### 3.3 TDD 铁律（子代理必须遵守）
+
+每个 Step 内的代码实现必须按 Red-Green-Refactor 循环执行：
+
+1. **RED** — 写失败测试，运行并确认以预期原因 FAIL
+2. **GREEN** — 写最小实现代码，运行确认 PASS
+3. **REFACTOR** — 清理代码，保持测试绿色
+
+**铁律：没有先看到测试 FAIL，就没有实现代码。**
+
+有代码未先写测试？删除，重来。
+
+### 3.4 实时 checkbox 勾选规则
+
+<HARD-GATE>
+每完成一个 Step，立即更新 plan 文件中对应 `- [ ]` 为 `- [x]`。
+禁止等所有 Step 或所有 Task 完成后批量勾选。
+</HARD-GATE>
+
+勾选时机：
+
+| 时机 | 操作 |
+|------|------|
+| 每个 Step 完成后 | 立即修改 plan 文件，将该 Step 的 `- [ ]` 改为 `- [x]` |
+| 整个 Task 所有 Step `[x]` 后 | 执行 tasks.md 同步（见 3.5） |
+
+### 3.5 Task 完成后：同步 tasks.md
+
+每个 Task 全部 Step 勾选完毕，立即执行：
+
+1. 读取 plan 文件中该 Task 的 `> **sync:**` 标注，定位 tasks.md 中对应条目
 2. 打开 `openspec/changes/<变更名>/tasks.md`
-3. 将对应条目的 `- [ ]` 改为 `- [x]`
-4. 在条目末尾追加实现摘要：`<!-- 已实现: [简短描述] -->`
+3. 将对应条目 `- [ ]` 改为 `- [x]`
+4. 在条目末尾追加：`<!-- 已实现: [简短描述] -->`
 
-**同步规则：**
-- 只同步"整个 Task 已完成"的情况，不允许部分同步
-- 如果 `sync` 标注匹配不到 tasks.md 中的条目，记录警告但不阻塞
+**规则：**
+- 整个 Task 完成才同步，不允许部分同步
+- `sync` 匹配不到条目 → 记录警告，但不阻塞继续执行
 
-#### 5.2 tasks.md → Plan 同步
+---
 
-1. 如果用户在 amend 阶段修改了 tasks.md 并新增了条目
-2. build 恢复时检测到 tasks.md 有新增未同步条目 → 在 plan 文件中追加对应 Task
-3. 如果 tasks.md 条目被删除但 plan 中对应 Task 已完成 → 不回溯；如果未完成 → 在 plan 中标记为取消
+## 阶段 4：完成验证
 
-### 6. 执行完成
+所有 Task 执行完毕后，运行最终一致性检查：
 
-所有 task 完成后，提示用户：
+- [ ] `openspec/changes/<变更名>/tasks.md` 所有条目为 `[x]`
+- [ ] `docs/superpowers/plans/YYYY-MM-DD-<变更名>.md` 所有 checkbox 为 `[x]`
+- [ ] 两边条目数量一致
 
-> "所有实现任务已完成。接下来可以用 /sddflow close 验证一致性并归档。"
+**不一致时：**
 
-### 7. checkbox 同步验证（全部 Task 完成后执行）
+| 情况 | 处理 |
+|------|------|
+| tasks.md 有未勾选 | 回到阶段 3 执行遗漏 Task |
+| plan 文件有未勾选 | 回到阶段 3 执行遗漏 Step |
+| 数量不一致 | 有条目未同步，重新执行 3.5 后再比对 |
 
-全部 Task 完成后，执行最终一致性检查：
+全部通过后，提示用户：
 
-- [ ] 读取 `openspec/changes/<变更名>/tasks.md`，确认所有条目为 `[x]`
-- [ ] 读取 `docs/superpowers/plans/YYYY-MM-DD-<变更名>.md`，确认所有 checkbox 为 `[x]`
-- [ ] 两边条目数量一致（tasks.md 条目数 = plan 文件中 Task 数量）
+> "所有实现任务已完成，plan 文件与 tasks.md 已同步。
+>
+> 接下来可以用 `/sddflow close` 验证规格一致性并归档。"
 
-**如果不一致：**
-- tasks.md 有未勾选 → 回到步骤 4 执行遗漏的 Task
-- plan 文件有未勾选 → 回到步骤 4 执行遗漏的 step
-- 数量不一致 → 有人新增/删除了条目但未同步，执行步骤 5.2 后再比对
-
-只有全部三项通过，才允许提示进入步骤 6。
+---
 
 ## 关键原则
 
-- **不允许在 build 阶段修改规格文档** — 发现需求遗漏或规格错误时切到 `/sddflow amend`
-- build 是唯一默认允许修改代码或实现文件的阶段；如果上一阶段不是 build，不要因为用户确认范围而自动写代码
-- plan-ready.md 是锁定的设计决策，Superpowers 按计划展开执行，不重新理解需求
-- 断点恢复依赖文件系统状态，不依赖 AI 的会话记忆
-- **plan 文件与 tasks.md 必须始终保持 checkbox 同步**，每个 Task 完成后立即双向更新
+- **build 阶段不修改规格文档** — 发现需求遗漏或规格错误 → `/sddflow amend`
+- **plan-ready.md 是锁定的输入** — 子代理按计划执行，不重新解读需求
+- **断点恢复依赖文件系统** — 不依赖 AI 会话记忆，任何时候重启都从 checkbox 状态恢复
+- **plan 文件与 tasks.md 实时同步** — 每个 Task 完成后立即双向更新
+- **不允许进入 build 阶段修改代码前跳过 plan 生成** — 必须先有 plan 文件
