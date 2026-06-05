@@ -72,7 +72,7 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 | 校验项 | 规则 |
 |--------|------|
 | 包含 Task | 至少 1 个 `### Task N:` |
-| Sync 标注 | 每个 Task 都有 `> **sync:** tasks.md →` |
+| Trace / Sync | 每个 Task 都有 `> **trace:**` 与 `> **sync:**`（含 tasks.md 与 plan-ready.md 原文行） |
 | 无占位符 | 不含 "TODO"、"TBD"、"实现待定" |
 | Checkbox 语法 | 存在 `- [ ]` 或 `- [x]` |
 
@@ -170,18 +170,31 @@ plan 文件通过校验后，读取其 checkbox 状态：
 | 时机 | 操作 |
 |------|------|
 | 每个 Step 完成后 | 立即修改 plan 文件，将该 Step 的 `- [ ]` 改为 `- [x]` |
-| 整个 Task 所有 Step `[x]` 后 | 执行 tasks.md 同步（见 2.5） |
+| 整个 Task 所有 Step `[x]` 后 | 执行三文档同步（见 2.5） |
 
-### 2.5 Task 完成后：同步 tasks.md
+### 2.5 Task 完成后：同步 plan-ready.md、tasks.md
 
-每个 Task 全部 Step 勾选完毕，立即执行：
+每个 Task 全部 Step 勾选完毕后，**立即**按 plan 文件中该 Task 的 `> **sync:**` 与 `> **trace:**` 同步以下三处（顺序不限，须在同一轮完成）：
 
-1. 读取 plan 文件中该 Task 的 `> **sync:**` 标注，定位 tasks.md 中对应条目
-2. 打开 `openspec/changes/<变更名>/tasks.md`
-3. 将对应条目 `- [ ]` 改为 `- [x]`
-4. 在条目末尾追加：`<!-- 已实现: [简短描述] -->`
+**A. superpowers plan（当前文件）** — 该 Task 下所有 Step 已为 `[x]`（应在 2.4 中逐步完成）
 
-**规则：** 整个 Task 完成才同步，不允许部分同步。`sync` 匹配不到 → 记录警告，不阻塞执行。
+**B. tasks.md**
+
+1. 打开 `openspec/changes/<变更名>/tasks.md`
+2. 用 `sync` 中 `tasks.md →` 后的**原文整行**定位对应 `- [ ]` 条目
+3. 改为 `- [x]`，末尾追加：`<!-- 已实现: [简短描述] -->`
+
+**C. plan-ready.md**
+
+1. 打开 `openspec/changes/<变更名>/plan-ready.md`
+2. 用 `sync` 中 `plan-ready.md →` 后的 `### Task N: ...` 标题定位对应 Task 块
+3. 将该 Task 下 `- [ ] **任务完成**` 改为 `- [x] **任务完成**`
+
+**规则：**
+
+- 整个 superpowers plan Task 完成才同步 B、C，不允许部分同步
+- `trace` 用于校验：`sync` 行与源文件不一致 → 记录警告并尝试用 `trace` 回退匹配
+- 任一文档匹配失败 → 记录警告，不阻塞执行，但阶段 3 一致性检查会暴露遗漏
 
 ---
 
@@ -190,20 +203,22 @@ plan 文件通过校验后，读取其 checkbox 状态：
 所有 Task 执行完毕后，运行最终一致性检查：
 
 - [ ] `openspec/changes/<变更名>/tasks.md` 所有条目为 `[x]`
+- [ ] `openspec/changes/<变更名>/plan-ready.md` 所有 **任务完成** checkbox 为 `[x]`
 - [ ] plan 文件所有 checkbox 为 `[x]`
-- [ ] 两边条目数量一致
+- [ ] 三文档 Task 数量与 plan 中 `### Task N` 数量一致
 
 **不一致时：**
 
 | 情况 | 处理 |
 |------|------|
 | tasks.md 有未勾选 | 回到阶段 2 执行遗漏 Task |
+| plan-ready.md 有未勾选 | 回到阶段 2 执行 2.5 同步 plan-ready |
 | plan 文件有未勾选 | 回到阶段 2 执行遗漏 Step |
 | 数量不一致 | 重新执行 2.5 后再比对 |
 
 全部通过后提示：
 
-> "所有实现任务已完成，plan 文件与 tasks.md 已同步。
+> "所有实现任务已完成，plan 文件、plan-ready.md 与 tasks.md 已同步。
 >
 > 接下来可以用 `/sddflow close` 验证规格一致性并归档。"
 
@@ -215,4 +230,4 @@ plan 文件通过校验后，读取其 checkbox 状态：
 - **build 阶段不修改规格文档** — 发现需求遗漏或规格错误 → `/sddflow amend`
 - **plan-ready.md 是锁定的输入** — 子代理按计划执行，不重新解读需求
 - **断点恢复依赖文件系统** — 不依赖 AI 会话记忆，任何时候重启都从 checkbox 状态恢复
-- **plan 文件与 tasks.md 实时同步** — 每个 Task 完成后立即双向更新
+- **plan 与 plan-ready.md、tasks.md 三向同步** — 每个 Task 完成后按 `sync` 勾选三处 checkbox

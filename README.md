@@ -74,7 +74,7 @@ available phases. OpenCode keeps its native command-tree form under
 |---------|-------|-------------|
 | `/sddflow proposal` | proposal | Lightweight capture — 3-5 questions to converge on requirements |
 | `/sddflow brainstorming` | brainstorming | Deep design — multi-round tradeoff exploration |
-| `/sddflow spec` | spec | Call OpenSpec to generate specs + auto-translate to plan-ready.md |
+| `/sddflow spec` | spec | Complete OpenSpec artifacts per AGENTS.md + Proposal, then auto-translate |
 | `/sddflow amend` | amend | Revise requirements/specs before close and update plan-ready.md |
 | `/sddflow build` | build | Call Superpowers to execute implementation |
 | `/sddflow close` | close | Verify consistency + archive |

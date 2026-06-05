@@ -16,7 +16,7 @@ const TEMPLATES_DIR = path.resolve(__dirname, '..', '..', 'templates');
 const PHASES = [
   { name: 'proposal', description: 'Quick requirement capture' },
   { name: 'brainstorming', description: 'Deep design exploration' },
-  { name: 'spec', description: 'Generate OpenSpec specs and translate to plan-ready.md' },
+  { name: 'spec', description: 'Complete OpenSpec artifacts per AGENTS.md, then plan-ready and writing-plans' },
   { name: 'amend', description: 'Revise requirements/specs before close' },
   { name: 'build', description: 'Execute implementation' },
   { name: 'close', description: 'Verify consistency and archive' },
@@ -89,11 +89,6 @@ function generateSkillFile(skillsDir: string, filename: string, depStatus: DepSt
   // Inject runtime dependency checks into build.md
   if (filename === 'build.md') {
     content = injectRuntimeDepCheck(content, depStatus);
-  }
-
-  // Inject runtime dependency checks into spec.md for OpenSpec
-  if (filename === 'spec.md') {
-    content = injectSpecRuntimeCheck(content, depStatus);
   }
 
   const targetPath = path.join(skillsDir, filename);
@@ -179,22 +174,6 @@ function injectRuntimeDepCheck(content: string, _depStatus: DepStatus): string {
   return lines.join('\n');
 }
 
-function injectSpecRuntimeCheck(content: string, _depStatus: DepStatus): string {
-  const checkNote =
-    '> **OpenSpec 检测**：根据 proposal.md 生成 design.md + specs/ + tasks.md；如果 `openspec` CLI 可用，生成后运行 `openspec validate <变更名> --strict` 校验。';
-
-  const lines = content.split('\n');
-  const bashIdx = lines.findIndex(
-    (line, i) =>
-      line.trim() === '```bash' &&
-      lines.slice(i + 1, i + 4).some((l) => l.includes('openspec validate')),
-  );
-  if (bashIdx >= 0 && !lines.slice(Math.max(0, bashIdx - 3), bashIdx).some((l) => l.includes('OpenSpec 检测'))) {
-    lines.splice(bashIdx, 0, '', checkNote, '');
-  }
-  return lines.join('\n');
-}
-
 function getInlineTemplate(filename: string, depStatus: DepStatus): string {
   const templates: Record<string, string> = {
     'SKILL.md': `---
@@ -247,7 +226,7 @@ argument-hint: “proposal | brainstorming | spec | amend | build | close”
 |------|------|------|
 | \`/sddflow proposal\` | proposal | 轻量提问，快速收敛需求 |
 | \`/sddflow brainstorming\` | brainstorming | 深度设计，多轮探索 |
-| \`/sddflow spec\` | spec | 调用 OpenSpec 生成规格 + 翻译 |
+| \`/sddflow spec\` | spec | 按 OpenSpec: Proposal + AGENTS.md 补齐规格，再翻译与 writing-plans |
 | \`/sddflow amend\` | amend | build/close 前受控修改需求、规格和计划 |
 | \`/sddflow build\` | build | 调用 Superpowers 执行实现 |
 | \`/sddflow close\` | close | 验证一致性 + 归档 |

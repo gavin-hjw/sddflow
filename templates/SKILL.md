@@ -50,7 +50,7 @@ argument-hint: "proposal | brainstorming | spec | amend | build | close"
 |------|------|------|
 | `/sddflow proposal` | proposal | 轻量提问，快速收敛需求 |
 | `/sddflow brainstorming` | brainstorming | 深度设计，多轮探索 |
-| `/sddflow spec` | spec | 调用 OpenSpec 生成规格 + 翻译 |
+| `/sddflow spec` | spec | 按 OpenSpec: Proposal + AGENTS.md 补齐规格，再翻译与 writing-plans |
 | `/sddflow amend` | amend | build/close 前受控修改需求、规格和计划 |
 | `/sddflow build` | build | 调用 Superpowers 执行实现 |
 | `/sddflow close` | close | 验证一致性 + 归档 |

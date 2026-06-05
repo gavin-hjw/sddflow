@@ -62,16 +62,18 @@ description: Revise active OpenSpec requirements during build, regenerate plan-r
 
 ### 3. 修改 OpenSpec 文档
 
+**必须**遵循 `openspec/AGENTS.md` 与 **OpenSpec: Proposal** 中的格式与 delta 规则（与 `/sddflow spec` 步骤 2 相同，不得使用 sddflow 自订 spec 格式）。
+
 按影响范围更新：
 
-- `proposal.md`：追加 `## Amendments`，记录本次需求变更的日期、原因和摘要
-- `design.md`：仅当技术方案或约束变化时修改
-- `specs/<capability>/spec.md`：使用 `ADDED`、`MODIFIED`、`REMOVED` 或 `RENAMED Requirements` 表达 delta
-- `tasks.md`：追加新任务；不要重写或删除已完成任务
+- `proposal.md`：追加 `## Amendments`，记录本次需求变更的日期、原因和摘要（不改变 OpenSpec 既有章节语义）
+- `design.md`：仅当 AGENTS.md「Creating Change Proposals」判定需要 technical decisions 时修改
+- `specs/<capability>/spec.md`：仅使用 AGENTS.md 规定的 `## ADDED|MODIFIED|REMOVED|RENAMED Requirements` 与 `#### Scenario:` 格式
+- `tasks.md`：追加新任务；不要重写或删除已完成任务；格式与 OpenSpec: Proposal 步骤 6 一致
 
-要求：
-- 每个新增或修改的 requirement 必须至少有一个 `#### Scenario:`
-- `MODIFIED Requirements` 必须包含完整的新 requirement 文本，不只写差异片段
+要求（摘自 AGENTS.md，不得简化）：
+- 每个新增或修改的 requirement 至少一个 `#### Scenario:`
+- `MODIFIED Requirements` 必须包含完整 requirement 文本（从 `openspec/specs/` 复制后再编辑）
 - 已完成任务保留原 checkbox 状态
 
 ### 4. 校验 OpenSpec
@@ -115,14 +117,16 @@ openspec validate <变更名> --strict
 
 ### 6. 同步详细实现计划
 
+若需新增或调整实现任务，**追加部分须遵循** Superpowers `writing-plans` skill（与 `/sddflow spec` 步骤 5 相同），并为每个新 `### Task N` 填写 `> **trace:**` / `> **sync:**`（关联 `plan-ready.md` 与 `tasks.md` 原文行）。
+
 如果 `docs/superpowers/plans/YYYY-MM-DD-<变更名>.md` 已存在：
-- 已勾选任务不动
-- 未完成任务可按新需求调整
-- 追加新 task，保留 checkbox
+- 已勾选 Task/Step 不动
+- 未完成任务可按新需求调整（仍符合 writing-plans 无占位符规则）
+- 追加新 Task 时同步更新 `plan-ready.md` 对应 `### Task` 与 **任务完成** checkbox、`tasks.md` 新条目
 - 记录本次 amend 来源路径
 
 如果详细实现计划还不存在：
-- 不创建代码实现计划，提示下一步用 `/sddflow build`
+- 不创建实现计划，提示先 `/sddflow spec` 完成步骤 5
 
 ### 7. 提示下一步
 

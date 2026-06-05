@@ -73,7 +73,7 @@ OpenCode 保持原生命令树形式，例如 `/sddflow/spec`、`/sddflow/build`
 |------|------|------|
 | `/sddflow proposal` | proposal | 轻量提问，3-5 问快速收敛需求 |
 | `/sddflow brainstorming` | brainstorming | 深度设计，多轮方案探索 |
-| `/sddflow spec` | spec | 调用 OpenSpec 生成规格 + 自动翻译 |
+| `/sddflow spec` | spec | 按 OpenSpec: Proposal + AGENTS.md 补齐规格 + 自动翻译 |
 | `/sddflow amend` | amend | close 前修订需求/规格并更新 plan-ready.md |
 | `/sddflow build` | build | 调用 Superpowers 执行实现 |
 | `/sddflow close` | close | 验证一致性 + 归档 |
@@ -111,7 +111,7 @@ Init blocked until all are installed
                                      │
                           ┌──────────▼───────────┐
                           │  /sddflow spec        │
-                          │  OpenSpec 生成规格      │
+                          │  OpenSpec 官方流程补齐规格 │
                           └──────────┬───────────┘
                                      │
                           ┌──────────▼───────────┐

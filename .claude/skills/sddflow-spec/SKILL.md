@@ -1,6 +1,6 @@
 ---
 name: sddflow-spec
-description: "SDDFlow spec: Generate OpenSpec specs and translate to plan-ready.md. Visibility alias for sddflow spec."
+description: "SDDFlow spec: Complete OpenSpec artifacts per AGENTS.md, then plan-ready and writing-plans. Visibility alias for sddflow spec."
 argument-hint: "[optional context]"
 ---
 

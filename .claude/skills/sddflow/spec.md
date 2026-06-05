@@ -1,14 +1,14 @@
 ---
 name: sddflow/spec
-description: Generate OpenSpec docs, translate to plan-ready.md, then use writing-plans to produce the detailed implementation plan
+description: Complete OpenSpec change artifacts per AGENTS.md and OpenSpec Proposal, then translate to plan-ready.md and writing-plans
 ---
 
 # Spec: 生成规格 + 实现计划
 
 ## 目标
 
-1. 调用 OpenSpec 生成完整规格文档（proposal.md / design.md / specs/ / tasks.md）
-2. 翻译为工程视角的 `plan-ready.md`
+1. **按 OpenSpec 官方流程**补齐 `design.md`、`specs/`、`tasks.md`（`proposal.md` 通常已由前一阶段提供）
+2. 翻译为工程视角的 `plan-ready.md`（sddflow 翻译层，不改变 OpenSpec 制品格式）
 3. 调用 Superpowers `writing-plans` skill 生成可执行的详细实现计划（`docs/superpowers/plans/YYYY-MM-DD-<变更名>.md`）
 
 **spec 阶段产出全部文档后，build 阶段直接进入执行，不再生成计划。**
@@ -36,27 +36,47 @@ description: Generate OpenSpec docs, translate to plan-ready.md, then use writin
 
 ---
 
-## 步骤 2：生成 OpenSpec 规格文件
+## 步骤 2：生成 OpenSpec 规格制品（design.md + specs/ + tasks.md）
 
-根据 `proposal.md` 内容生成或补齐以下文件：
+<HARD-GATE>
+本步骤**必须**完全遵循 OpenSpec 官方规范，**禁止**使用 sddflow 自订格式、自订章节结构或替代生成流程。
+</HARD-GATE>
 
-| 文件 | 说明 |
-|------|------|
-| `openspec/changes/<变更名>/proposal.md` | 已存在，可补充 |
-| `openspec/changes/<变更名>/design.md` | 技术方案 |
-| `openspec/changes/<变更名>/specs/<能力>/spec.md` | 规格变更（ADDED / MODIFIED / REMOVED） |
-| `openspec/changes/<变更名>/tasks.md` | 实现任务清单 |
+### 2.1 必读与唯一规范来源
 
-如果 OpenSpec CLI 可用，生成后运行校验：
+执行前**完整阅读**并严格遵守（冲突时以 OpenSpec 为准）：
 
+1. `openspec/AGENTS.md` — Stage 1、Creating Change Proposals、Spec File Format、Delta Operations、Troubleshooting
+2. 项目内 **`OpenSpec: Proposal`** 命令（如 `.claude/commands/openspec/proposal.md`）中 `<!-- OPENSPEC:START -->` … `<!-- OPENSPEC:END -->` 的 **Guardrails** 与 **Steps**
 
-> **OpenSpec 检测**：根据 proposal.md 生成 design.md + specs/ + tasks.md；如果 `openspec` CLI 可用，生成后运行 `openspec validate <变更名> --strict` 校验。
+**声明（必须输出）：**
+> "正在按 OpenSpec 官方流程补齐 design.md、specs/ 与 tasks.md（遵循 openspec/AGENTS.md 与 OpenSpec: Proposal）。"
+
+### 2.2 执行方式
+
+在已确认 `<变更名>` 且 `openspec/changes/<变更名>/proposal.md` 已存在的前提下，**逐条执行 OpenSpec: Proposal 的步骤 1–7**（与 AGENTS.md Stage 1 一致）：
+
+1. 调研上下文：`openspec/project.md`、`openspec list`、`openspec list --specs`，必要时 `rg` / `openspec show` / 阅读相关代码
+2. 确认 `change-id` 为 `<变更名>`；**不要**用 sddflow 模板替换已有 `proposal.md`，仅在 OpenSpec 规范要求或与用户确认后，将内容对齐为 AGENTS.md 的 `## Why` / `## What Changes` / `## Impact` 结构
+3. 将变更映射到 capability，按 OpenSpec: Proposal 步骤 3 拆分多能力 delta
+4. 按 AGENTS.md **Creating Change Proposals** 第 5 节判定是否创建 `design.md`；不需要则**不得**添加空 `design.md`
+5. 在 `openspec/changes/<变更名>/specs/<capability>/spec.md` 撰写 delta（`## ADDED|MODIFIED|REMOVED|RENAMED Requirements`；每条 requirement 至少一个 `#### Scenario:`；`MODIFIED` 须粘贴 `openspec/specs/` 中完整 requirement 后再改）
+6. 按 OpenSpec: Proposal 步骤 6 撰写 `tasks.md`（有序、可勾选、含验证项）
+7. 运行严格校验（见 2.3）
+
+**禁止：**
+
+- 自订 spec 模板、自订 requirement/scenario 写法（一律以 AGENTS.md 为准）
+- 凭经验生成 delta 而未对照 `openspec/specs/` 与 AGENTS.md
+- 跳过 `openspec validate` 或忽略校验错误
+
+### 2.3 校验
 
 ```bash
 openspec validate <变更名> --strict
 ```
 
-校验失败时修正文件后重新校验。
+校验失败时：使用 `openspec show <变更名> --json --deltas-only` 排查，按 AGENTS.md **Troubleshooting** 修正后重新校验，直至通过。
 
 ---
 
@@ -101,6 +121,7 @@ openspec validate <变更名> --strict
 ## 实现步骤
 
 ### Task 1: <任务名>
+- [ ] **任务完成**（与 superpowers plan `Task 1`、`tasks.md` 对应条目同步勾选）
 - 目标：<做什么>
 - 改动文件：<哪些文件>
 - 验证方式：<怎么验证>
@@ -108,114 +129,79 @@ openspec validate <变更名> --strict
 ### Task 2: ...
 ```
 
----
-
-## 步骤 5：生成详细实现计划
-
-> **使用 Superpowers `writing-plans` skill**
-
-**声明：** 输出：
-> "正在使用 writing-plans skill 生成详细实现计划。"
-
-### 5.1 输入来源
-
-同时读取：
-1. `openspec/changes/<变更名>/plan-ready.md`
-2. `openspec/changes/<变更名>/tasks.md`
-
-### 5.2 文件结构规划
-
-拆分 Task 前，列出所有将被创建或修改的文件及其职责。每个文件只有一个清晰职责，要一起变更的文件放在同一个 Task 里。
-
-### 5.3 Plan 文件格式
-
-**保存路径：**
-```
-docs/superpowers/plans/YYYY-MM-DD-<变更名>.md
-```
-
-**必须以如下 header 开头：**
-```markdown
-# [功能名称] 实现计划
-
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Each subagent MUST use superpowers:test-driven-development (Red-Green-Refactor cycle). Steps use checkbox (`- [ ]`) syntax for real-time tracking — check off each step IMMEDIATELY after completion, do NOT batch at the end.
-
-**Goal:** [一句话描述要构建什么]
-
-**Architecture:** [2-3 句话描述方案]
-
-**Tech Stack:** [关键技术/库]
-
-**来源:**
-- plan-ready.md: openspec/changes/<变更名>/plan-ready.md
-- tasks.md: openspec/changes/<变更名>/tasks.md
+步骤 4 中每个 `### Task N` 的标题与序号须与后续 `tasks.md`、`writing-plans` 产出中的 Task N **一一对应**。
 
 ---
-```
 
-**每个 Task 结构：**
+## 步骤 5：生成详细实现计划（writing-plans）
+
+<HARD-GATE>
+本步骤**必须**完整遵循 Superpowers **`writing-plans`** skill（读取并执行其全文：Scope Check、File Structure、Bite-Sized Task Granularity、Plan Document Header、Task Structure、No Placeholders、Self-Review）。**禁止**用本节自订格式替代 writing-plans 的 Task/Step 结构或占位符规则。
+</HARD-GATE>
+
+### 5.1 调用 writing-plans
+
+1. **先读取** Superpowers `writing-plans` skill（`writing-plans/SKILL.md`）
+2. **必须声明**（与 skill 一致，可中英任选其一）：
+   > "I'm using the writing-plans skill to create the implementation plan."
+   > 或：「正在使用 writing-plans skill 生成详细实现计划。」
+3. **输入上下文**（除 writing-plans 要求的 spec 外，sddflow 强制一并阅读）：
+   - `openspec/changes/<变更名>/plan-ready.md`
+   - `openspec/changes/<变更名>/tasks.md`
+   - `openspec/changes/<变更名>/proposal.md`、`design.md`（若存在）、`specs/`
+4. **保存路径**（与 writing-plans 默认一致，变更名替换 feature-name）：
+   `docs/superpowers/plans/YYYY-MM-DD-<变更名>.md`
+
+按 writing-plans 顺序执行：**Scope Check → File Structure → 分解 Task/Step → 写入计划 → Self-Review**。
+
+### 5.2 sddflow 追溯扩展（在 writing-plans 规则之上追加）
+
+在**不修改** writing-plans 规定的 Plan Header 与 Task/Step 主体结构的前提下，仅追加下列追溯字段，供 `/sddflow build` 多文档 checkbox 同步：
+
+**Plan Header 在 writing-plans 必填项之后追加：**
+
 ```markdown
-### Task N: [组件名]
-
-> **sync:** tasks.md → [对应 tasks.md 条目的原文摘要]
-
-**Files:**
-- Create: `exact/path/to/file`
-- Modify: `exact/path/to/existing:行号范围`
-- Test: `tests/exact/path/to/test`
-
-- [ ] **Step 1: 写失败测试**
-
-  ```语言
-  // 完整测试代码，不允许占位符
-  ```
-
-- [ ] **Step 2: 运行测试，确认 FAIL**
-
-  Run: `具体命令`
-  Expected: FAIL — "[预期失败原因]"
-
-- [ ] **Step 3: 写最小实现代码**
-
-  ```语言
-  // 完整实现代码，不允许占位符
-  ```
-
-- [ ] **Step 4: 运行测试，确认 PASS**
-
-  Run: `具体命令`
-  Expected: PASS, all N tests green
-
-- [ ] **Step 5: Refactor（如需要）**
-
-- [ ] **Step 6: Commit**
-
-  ```bash
-  git add [文件列表]
-  git commit -m "feat: [具体描述]"
-  ```
+**Traceability (sddflow):**
+- plan-ready: `openspec/changes/<变更名>/plan-ready.md`
+- tasks: `openspec/changes/<变更名>/tasks.md`
+- plan: `docs/superpowers/plans/YYYY-MM-DD-<变更名>.md`
 ```
 
-### 5.4 禁止占位符
+**每个 `### Task N` 正文开头（位于 `**Files:**` 之前）必须包含：**
 
-以下内容**绝对禁止**出现：
-- "TBD"、"TODO"、"实现待定"、"implement later"
-- "Add appropriate error handling"（需写出具体代码）
-- "Write tests for the above"（需写出测试代码）
-- "Similar to Task N"（直接重复代码）
-- 引用了但未定义的类型、函数、方法名
+```markdown
+> **trace:** plan-ready.md → `### Task N: <与 plan-ready 完全一致的标题>` | tasks.md → `<tasks.md 中对应条目的原文整行，含 checkbox>`
+> **sync:** tasks.md → `<与 trace 中 tasks.md 行相同的原文整行>` | plan-ready.md → `### Task N: <标题>`
+```
 
-### 5.5 writing-plans 自检
+规则：
+- `Task N` 序号在 plan 文件、`plan-ready.md`、`tasks.md` 三者间**一一对应**（N 从 1 递增，不跳号）
+- `trace` / `sync` 中的 `tasks.md`、`plan-ready.md` 引用必须是**可精确匹配的原文**（build 靠此行定位勾选位置）
+- 每个 OpenSpec `tasks.md` 顶层待实现 checkbox 条目至少对应一个 superpowers plan `Task`；每个 `plan-ready.md` 的 `### Task N` 至少对应一个 superpowers plan `Task`
+- writing-plans 的每个 Step 仍使用 `- [ ]` checkbox（build 每完成 Step 立即勾选 plan 文件）
 
-写完 plan 文件后执行，全部为真才允许进入步骤 6：
+**build 阶段同步契约（写入计划时须自检）：**
 
-- [ ] `docs/superpowers/plans/` 下存在对应 `.md` 文件
-- [ ] 文件中至少包含 1 个 Task，且数量与 `tasks.md` 中待实现条目一致
-- [ ] 文件中没有 "TODO"、"TBD"、"实现待定" 字样
-- [ ] 每个 Task 都有 `> **sync:**` 标注，与 tasks.md 条目一一对应
-- [ ] 每个 Step 包含完整代码块（无占位符）
+| 完成粒度 | 须勾选文档 |
+|----------|------------|
+| 每个 Step 完成 | `docs/superpowers/plans/...md` 对应该 Step 的 `- [ ]` → `- [x]` |
+| 整个 Task 完成 | 上表 plan 中该 Task 全部 Step 已为 `[x]`；且 `tasks.md` 中 `sync` 指向的行 → `[x]`；且 `plan-ready.md` 中 `sync` 指向的 **任务完成** checkbox → `[x]` |
 
-有任一不通过 → 回到 5.3 修复，禁止进入步骤 6。
+### 5.3 禁止占位符与自检
+
+**占位符：** 以 writing-plans skill **No Placeholders** 为准（禁止 TBD/TODO/无代码的「写测试」等）；不得因 sddflow 追溯字段而省略完整代码与命令。
+
+**写完计划后依次执行：**
+
+1. writing-plans **Self-Review**（Spec coverage、Placeholder scan、Type consistency）
+2. sddflow 追溯自检（全部为真才进入步骤 6）：
+   - [ ] `docs/superpowers/plans/YYYY-MM-DD-<变更名>.md` 已存在
+   - [ ] Plan Header 含 writing-plans 必填项 + `**Traceability (sddflow):**`
+   - [ ] 至少 1 个 Task，且 Task 数与 `tasks.md` 待实现条目、`plan-ready.md` 的 `### Task` 数量一致
+   - [ ] 每个 Task 含 `> **trace:**` 与 `> **sync:**`，且 `sync` 中 tasks/plan-ready 行可在源文件中逐字找到
+   - [ ] 每个 Step 为 writing-plans 粒度（2–5 分钟单动作），含完整代码块与 Run/Expected（无占位符）
+
+有任一不通过 → 按 writing-plans Self-Review 修正后重做追溯自检，禁止进入步骤 6。
 
 ---
 
@@ -241,9 +227,10 @@ docs/superpowers/plans/YYYY-MM-DD-<变更名>.md
 
 ## 关键原则
 
+- **OpenSpec 制品（design.md / specs/ / tasks.md）只按 AGENTS.md + OpenSpec: Proposal 生成**，sddflow 不在此步骤引入自订规则
 - **一条代码都不许写** — spec 阶段只产出文档
 - 只允许写 `openspec/changes/**`、`plan-ready.md`、`docs/superpowers/plans/*.md`，禁止修改任何代码
-- 翻译必须在用户确认规格后自动生成，不需要用户手动触发
-- writing-plans 自检必须通过，否则不允许结束 spec 阶段
+- 翻译（plan-ready.md、writing-plans）在用户确认 OpenSpec 规格后进行，不改变 delta spec 格式
+- 步骤 5 须通过 writing-plans Self-Review 与 sddflow 追溯自检，否则不允许结束 spec 阶段
 - plan-ready.md 的 `## 来源` 部分必须写明路径
 - 按执行依赖排序是翻译的关键步骤：先依赖后依赖方
