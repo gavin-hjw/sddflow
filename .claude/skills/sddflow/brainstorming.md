@@ -162,7 +162,7 @@ mkdir -p openspec/changes/<变更名>/specs
 
 > "需求已记录至 `openspec/changes/<变更名>/proposal.md`。
 >
-> 接下来用 `/sddflow spec` 生成完整规格（design.md + specs/ + tasks.md + plan-ready.md + 实现计划）。"
+> 接下来用 `/sddflow spec` 生成完整规格（specs/ + tasks.md + plan-ready.md + 实现计划；design.md 按需）。"
 
 ---
 

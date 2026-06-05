@@ -7,7 +7,7 @@ description: Complete OpenSpec change artifacts per AGENTS.md and OpenSpec Propo
 
 ## 目标
 
-1. **按 OpenSpec 官方流程**补齐 `design.md`、`specs/`、`tasks.md`（`proposal.md` 通常已由前一阶段提供）
+1. **按 OpenSpec 官方流程**补齐 `specs/`、`tasks.md`；`design.md` **按需**创建（`proposal.md` 通常已由前一阶段提供）
 2. 翻译为工程视角的 `plan-ready.md`（sddflow 翻译层，不改变 OpenSpec 制品格式）
 3. 调用 Superpowers `writing-plans` skill 生成可执行的详细实现计划（`docs/superpowers/plans/YYYY-MM-DD-<变更名>.md`）
 
@@ -36,7 +36,7 @@ description: Complete OpenSpec change artifacts per AGENTS.md and OpenSpec Propo
 
 ---
 
-## 步骤 2：生成 OpenSpec 规格制品（design.md + specs/ + tasks.md）
+## 步骤 2：生成 OpenSpec 规格制品（specs/ + tasks.md；design.md 按需）
 
 <HARD-GATE>
 本步骤**必须**完全遵循 OpenSpec 官方规范，**禁止**使用 sddflow 自订格式、自订章节结构或替代生成流程。
@@ -50,7 +50,7 @@ description: Complete OpenSpec change artifacts per AGENTS.md and OpenSpec Propo
 2. 项目内 **`OpenSpec: Proposal`** 命令（如 `.claude/commands/openspec/proposal.md`）中 `<!-- OPENSPEC:START -->` … `<!-- OPENSPEC:END -->` 的 **Guardrails** 与 **Steps**
 
 **声明（必须输出）：**
-> "正在按 OpenSpec 官方流程补齐 design.md、specs/ 与 tasks.md（遵循 openspec/AGENTS.md 与 OpenSpec: Proposal）。"
+> "正在按 OpenSpec 官方流程补齐 specs/ 与 tasks.md（design.md 按需；遵循 openspec/AGENTS.md 与 OpenSpec: Proposal）。"
 
 ### 2.2 执行方式
 
@@ -86,7 +86,7 @@ openspec validate <变更名> --strict
 
 > "以下是规格摘要：
 > - **提案**：[proposal.md 核心内容]
-> - **设计**：[design.md 核心决策]
+> - **设计**：[若存在 design.md → 核心决策；否则 → 无 design.md（OpenSpec 判定无需技术设计文档）]
 > - **规格**：[specs/ 变更列表]
 > - **任务**：[tasks.md 任务列表]
 >
@@ -118,7 +118,7 @@ openspec validate <变更名> --strict
 
 ## 步骤 4：生成 plan-ready.md（翻译层）
 
-将 OpenSpec 四文件翻译为工程视角的执行格式（**并满足上文「三文档 Checkbox 对齐扩展」中 plan-ready.md 条款**）。
+将 OpenSpec 制品翻译为工程视角的执行格式（**并满足上文「三文档 Checkbox 对齐扩展」中 plan-ready.md 条款**）。
 
 **翻译规则：**
 1. 每个 OpenSpec Task 拆成 2-5 个细粒度步骤（对应 2-5 分钟工作量）
@@ -134,7 +134,7 @@ openspec validate <变更名> --strict
 
 ## 来源
 - 提案：openspec/changes/<变更名>/proposal.md
-- 设计：openspec/changes/<变更名>/design.md
+- 设计：<若存在 design.md 则写路径；否则写「无（OpenSpec 判定无需）」>
 - 规格：openspec/changes/<变更名>/specs/
 - 任务：openspec/changes/<变更名>/tasks.md
 
@@ -243,7 +243,7 @@ openspec validate <变更名> --strict
 >
 > **OpenSpec 规格：**
 > - `openspec/changes/<变更名>/proposal.md` ✓
-> - `openspec/changes/<变更名>/design.md` ✓
+> - `openspec/changes/<变更名>/design.md` ✓（若存在；否则注明「无 design.md，符合 OpenSpec 可选规则」）
 > - `openspec/changes/<变更名>/specs/` ✓
 > - `openspec/changes/<变更名>/tasks.md` ✓
 >

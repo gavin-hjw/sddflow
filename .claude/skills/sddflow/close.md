@@ -120,7 +120,7 @@ openspec validate <变更名> --strict
 |------|----------|
 | **Completeness** | `tasks.md` checkbox 全部 `[x]`；plan 文件 checkbox 全部 `[x]`；所有规格需求有实现证据 |
 | **Correctness** | 实现与 `specs/**/spec.md` 中 Requirement、Scenario 一致 |
-| **Coherence** | 代码遵循 `design.md` 决策；符合项目既有模式 |
+| **Coherence** | 若存在 `design.md`：代码遵循其决策；若无 `design.md`：代码与 `proposal.md` / `specs/**` 一致，且符合项目既有模式 |
 
 ### 3.3 处理结果
 

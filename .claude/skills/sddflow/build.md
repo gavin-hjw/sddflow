@@ -38,7 +38,8 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 ## 阶段 1：前置文件完整性校验
 
 <HARD-GATE>
-以下所有文件必须存在且通过校验，任何一项不通过都不允许进入执行阶段。
+以下必填文件必须存在且通过校验，任何一项不通过都不允许进入执行阶段。
+`design.md` 按 OpenSpec 可选规则处理，缺失不阻断 build。
 </HARD-GATE>
 
 ### 1.1 确定活跃变更
@@ -52,19 +53,24 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 | 检查项 | 路径 | 不通过时 |
 |--------|------|----------|
 | 提案文件 | `openspec/changes/<变更名>/proposal.md` | 提示先运行 `/sddflow proposal` |
-| 技术方案 | `openspec/changes/<变更名>/design.md` | 提示先运行 `/sddflow spec` |
 | 规格目录 | `openspec/changes/<变更名>/specs/`（非空） | 提示先运行 `/sddflow spec` |
 | 任务清单 | `openspec/changes/<变更名>/tasks.md` | 提示先运行 `/sddflow spec` |
 | 翻译计划 | `openspec/changes/<变更名>/plan-ready.md` | 提示先运行 `/sddflow spec` |
 | 详细实现计划 | `docs/superpowers/plans/` 下有 `<变更名>` 对应文件 | 提示先运行 `/sddflow spec` |
 | Checkbox 扩展 | 三份任务文档均含 `- [ ]` / `- [x]`（见 spec「三文档 Checkbox 对齐扩展」） | 提示先运行 `/sddflow spec` 补齐 checkbox |
 
-任一不通过，输出完整缺失列表后终止：
+**可选参考（不阻断）：**
+
+| 检查项 | 路径 | 说明 |
+|--------|------|------|
+| 技术方案 | `openspec/changes/<变更名>/design.md` | 若存在则作为实现参考输入；不存在且符合 OpenSpec 可选规则则跳过，不得要求 spec 补空文件 |
+
+任一必填项不通过，输出完整缺失列表后终止：
 
 > "build 前置校验未通过，缺少以下文件：
 > - [缺失文件列表]
 >
-> 请先完成 `/sddflow spec` 生成全部文件后再执行 build。"
+> 请先完成 `/sddflow spec` 生成全部必填文件后再执行 build。"
 
 ### 1.3 Plan 文件内容校验
 
@@ -237,3 +243,4 @@ plan 文件通过校验后，读取其 checkbox 状态：
 - **plan-ready.md 是锁定的输入** — 子代理按计划执行，不重新解读需求
 - **断点恢复依赖文件系统** — 不依赖 AI 会话记忆，任何时候重启都从 checkbox 状态恢复
 - **plan 与 plan-ready.md、tasks.md 三向同步** — 每个 Task 完成后按 `sync` 勾选三处 checkbox
+- **`design.md` 遵循 OpenSpec optional 语义** — 缺失不得阻断 build，不得要求 spec 补空 `design.md`；若存在则作为实现参考
