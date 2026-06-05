@@ -17,7 +17,7 @@ description: Revise active OpenSpec requirements during build, regenerate plan-r
 
 不适用：
 - 只是代码没有实现现有 spec → 继续 `/sddflow build`
-- 变更已经 close/archive → 开新的 `/sddflow proposal` 或 `/sddflow brainstorming`
+- 变更已经 close/archive → 开新的 `/sddflow brainstorming`
 - 只是文案、注释或实现细节调整，且不改变行为 → 继续当前实现阶段
 
 ## 前置条件
@@ -27,10 +27,10 @@ description: Revise active OpenSpec requirements during build, regenerate plan-r
 - 通常应已存在 `plan-ready.md`；如果没有，优先回到 `/sddflow spec`
 
 如果没有 active change，提示：
-> "还没有活跃变更。请先用 /sddflow proposal 或 /sddflow brainstorming 创建需求。"
+> "还没有活跃变更。请先用 /sddflow brainstorming 创建需求。"
 
 如果变更已归档，提示：
-> "该变更已经归档。归档后的需求调整应开启新的 /sddflow proposal。"
+> "该变更已经归档。归档后的需求调整应开启新的 /sddflow brainstorming。"
 
 ## 流程
 

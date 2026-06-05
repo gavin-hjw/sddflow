@@ -35,7 +35,7 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 
 | 检查项 | 路径 | 不通过时 |
 |--------|------|----------|
-| 提案文件 | `openspec/changes/<变更名>/proposal.md` | 提示先运行 `/sddflow proposal` |
+| 提案文件 | `openspec/changes/<变更名>/proposal.md` | 提示先运行 `/sddflow brainstorming` |
 | 规格目录 | `openspec/changes/<变更名>/specs/`（非空） | 提示先运行 `/sddflow spec` |
 | 任务清单 | `openspec/changes/<变更名>/tasks.md` | 提示先运行 `/sddflow spec` |
 | 翻译计划 | `openspec/changes/<变更名>/plan-ready.md` | 提示先运行 `/sddflow spec` |

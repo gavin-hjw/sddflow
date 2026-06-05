@@ -19,7 +19,7 @@ description: Complete OpenSpec change artifacts per AGENTS.md and OpenSpec Propo
 
 ## 前置条件
 
-- `openspec/changes/` 下存在活跃变更目录（由 proposal 或 brainstorming 阶段创建）
+- `openspec/changes/` 下存在活跃变更目录（由 brainstorming 阶段创建）
 - 变更目录下至少有 `proposal.md`
 
 ---
@@ -29,7 +29,7 @@ description: Complete OpenSpec change artifacts per AGENTS.md and OpenSpec Propo
 检查 `openspec/changes/` 下是否有活跃变更（非 archive 子目录）。
 
 没有时提示：
-> "还没有活跃变更。请先用 /sddflow proposal 或 /sddflow brainstorming 创建需求。"
+> "还没有活跃变更。请先用 /sddflow brainstorming 创建需求。"
 
 多个时列出并让用户选择：
 > "检测到多个活跃变更：[列表]。要对哪个生成规格？"

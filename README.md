@@ -2,7 +2,16 @@
 
 [中文文档](./README.zh-CN.md)
 
-OpenSpec + Superpowers workflow orchestrator — bridging requirements specs and engineering execution, eliminating the format gap.
+## About
+
+sddflow is an OpenSpec + Superpowers workflow orchestrator. It connects **design exploration → spec documents → implementation → verification and archive** into one resumable flow, bridging the format gap between requirements specs and engineering execution.
+
+**Before use, you must complete two steps:**
+
+1. **Install dependencies** — OpenSpec CLI, Superpowers plugin, and its 6 required skills (see **Dependencies** below)
+2. **Initialize the project** — run `sddflow init` in the target project directory to check dependencies, run `openspec init`, and generate sddflow skills in your AI tool
+
+Until init succeeds, `/sddflow` commands are not available in the AI tool. Each project needs init once; after upgrading the npm package, run `sddflow update` to regenerate skills.
 
 ## Installation
 
@@ -10,147 +19,183 @@ OpenSpec + Superpowers workflow orchestrator — bridging requirements specs and
 npm install -g @gavin-hjw/sddflow
 ```
 
-## Usage
-
-### Initialize a project
+Initialize in your project directory:
 
 ```bash
 cd your-project
 sddflow init --tools claude
 ```
 
-`init` runs in four phases:
+Supported tools: `claude`, `codex`, `cursor`, `opencode` (comma-separated, e.g. `--tools claude,cursor`).
 
-1. **[1/4] Component check**: OpenSpec CLI + Superpowers plugin (abort with install guidance if missing)
-2. **[2/4] Skill check**: 6 required Superpowers skills (`/brainstorming`, `/writing-plans`, `/subagent-driven-development`, `/test-driven-development`, `/verification-before-completion`, `/finishing-a-development-branch`)
-3. **[3/4] Auto-init**: runs `openspec init --tools <tools>` using the `--tools` flag passed to `sddflow init`
-4. **[4/4] Integrity check**: verifies `openspec/AGENTS.md`, `openspec/project.md`, and `.claude/commands/openspec/*.md`, etc.
-
-After all phases pass, generates sddflow skills to the selected tools' local skill directories
-
-Supported tools: `claude`, `codex`, `cursor`, `opencode` (comma-separated, e.g. `--tools claude,codex`)
-
-### Install skills globally
+Install skills globally (shared across projects):
 
 ```bash
-sddflow init --tools claude -g
-sddflow init --tools claude,codex,cursor,opencode --global
+sddflow init --tools claude --global
 ```
 
-With `-g` / `--global`, `sddflow` installs skills under the selected tools' home directories:
-
-| Tool | Global skill path |
-|------|-------------------|
-| `claude` | `~/.claude/skills/sddflow/` |
-| `codex` | `~/.codex/skills/sddflow/` |
-| `cursor` | `~/.cursor/skills/sddflow/` |
-| `opencode` | `~/.opencode/commands/sddflow/` |
-
-### Check status
-
-```bash
-sddflow status
-```
-
-Shows dependency installation status and active changes in the project.
-
-### Update skills
+After upgrading the npm package, regenerate project skills:
 
 ```bash
 sddflow update
 ```
 
-Re-generates project skills after upgrading the npm package.
+Run `sddflow status` to check dependency readiness, OpenSpec init integrity, and the current stage of each active change.
 
-## Workflow Commands
+## Dependencies
 
-Canonical usage is `/sddflow <phase>`. For Claude Code, Codex, and Cursor,
-`sddflow` also generates visible phase aliases such as `/sddflow-spec` or
-`$sddflow-spec` so typing `sddflow` in the command/skill picker surfaces the
-available phases. OpenCode keeps its native command-tree form under
-`/sddflow/spec`, `/sddflow/build`, and so on.
+`sddflow init` checks each item and aborts with install guidance if anything is missing.
 
-| Command | Phase | Description |
-|---------|-------|-------------|
-| `/sddflow proposal` | proposal | Lightweight capture — 3-5 questions to converge on requirements |
-| `/sddflow brainstorming` | brainstorming | Deep design — multi-round tradeoff exploration |
-| `/sddflow spec` | spec | Complete OpenSpec artifacts per AGENTS.md + Proposal, then auto-translate |
-| `/sddflow amend` | amend | Revise requirements/specs before close and update plan-ready.md |
-| `/sddflow build` | build | Call Superpowers to execute implementation |
-| `/sddflow close` | close | Verify consistency + archive |
+| Dependency | Role | Install |
+|------------|------|---------|
+| **OpenSpec CLI** | Generate and manage structured specs | `npm install -g @fission-ai/openspec@latest` |
+| **OpenSpec skill integration** | Invoke OpenSpec from AI tools | Run automatically via `openspec init --tools <tools>` during `sddflow init` |
+| **Superpowers plugin** | Implementation planning and build execution | Claude Code: `/plugin install superpowers@claude-plugins-official`; Cursor: Settings → Plugins → superpowers |
 
-## Dependency Strategy
+Superpowers must also provide these 6 skills: `brainstorming`, `writing-plans`, `subagent-driven-development`, `test-driven-development`, `verification-before-completion`, `finishing-a-development-branch`.
 
-```
-Requires: OpenSpec CLI + OpenSpec skill integration + Superpowers writing-plans skill
-Init blocked until all are installed
-```
+## Workflow
 
-| Dependency | Install | When missing at init |
-|------------|---------|----------------------|
-| OpenSpec CLI | `npm install -g @fission-ai/openspec@latest` | Abort init, show CLI install steps |
-| OpenSpec Skill | `openspec init --tools <tools>` | Abort init, prompt to run openspec init |
-| Superpowers | `/plugin install superpowers@claude-plugins-official` (Claude Code), etc. | Abort init, show plugin install steps |
+Run these steps in order inside your AI tool. Canonical usage is `/sddflow <phase>`; you can also type `/sddflow` to auto-route based on the current change state.
 
-### Dual-layer dependency check
-
-| Layer | Mechanism | When missing |
-|-------|-----------|-------------|
-| **Init time** | Strict check for OpenSpec CLI, OpenSpec tool integration files, and Superpowers writing-plans skill | **Abort init** with step-by-step install guidance |
-| **Runtime** | Dependency check injected into SKILL.md | Build phase falls back to manual step-by-step execution |
-
-## Architecture
+Claude / Codex / Cursor expose phase aliases (e.g. `/sddflow-brainstorming`); OpenCode uses forms like `/sddflow/brainstorming`.
 
 ```
-User Requirements
-   │
-   ├── Quick ──→ /sddflow proposal ──┐
-   │           3-5 questions          │
-   │                                  ├─→ proposal.md
-   └── Deep ───→ /sddflow brainstorming ─┘ (openspec/changes/<name>/)
-               Multi-round exploration
-                                     │
-                          ┌──────────▼───────────┐
-                          │  /sddflow spec         │
-                          │  OpenSpec generates     │
-                          └──────────┬───────────┘
-                                     │
-                          ┌──────────▼───────────┐
-                          │   Translation Layer    │
-                          │  Requirements → Eng    │
-                          └──────────┬───────────┘
-                                     │
-                                plan-ready.md
-                                     │
-                          ┌──────────▼───────────┐
-                          │  /sddflow build       │
-                          │  Superpowers execution │
-                          │  TDD + checkpoint      │
-                          └──────────┬───────────┘
-                                     │
-                          ┌──────────▼───────────┐
-                          │  /sddflow amend       │
-                          │  Requirement revision  │
-                          │  (only when needed)    │
-                          └──────────┬───────────┘
-                                     │
-                          ┌──────────▼───────────┐
-                          │  /sddflow close       │
-                          │  Verify + archive      │
-                          └──────────────────────┘
+brainstorming → spec → build → close
+                  ↑      │
+                  └── amend (on requirement change, as needed)
 ```
 
-## Acknowledgments
+---
 
-sddflow orchestrates two open-source projects:
+### Step 1: brainstorming — explore requirements and design
 
-| Project | Repository | License | Usage |
-|---------|-----------|---------|-------|
-| [OpenSpec](https://github.com/Fission-AI/OpenSpec) | `@fission-ai/openspec` | MIT | Generates structured spec files (proposal.md, design.md, specs/, tasks.md). sddflow calls its CLI and reads its output format. |
-| [Superpowers](https://github.com/obra/superpowers) | `superpowers` plugin | MIT | Provides `writing-plans` skill for detailed implementation planning. sddflow delegates build-phase execution to its workflow. |
+**What you do**
 
-sddflow is a **standalone orchestrator** — it does not bundle, fork, or embed code from either project. Dependencies are detected at init/runtime, with manual fallback when either is not installed.
+1. Type `/sddflow brainstorming` and describe the change you want
+2. Answer AI follow-up questions (one at a time): user scenarios, constraints, tradeoffs, boundaries, acceptance criteria
+3. Review 2–3 proposed approaches and pick a direction
+4. Confirm the design section by section, then explicitly reply "confirmed" / "OK"
 
-## License
+**Output**
 
-MIT
+- `openspec/changes/<name>/proposal.md`
+
+**What you verify**
+
+- [ ] `openspec/changes/<name>/` directory exists
+- [ ] `proposal.md` matches what you confirmed: background, scenarios, approach, scope boundaries, acceptance criteria
+- [ ] **No code changes** in this phase
+
+**Then** → proceed to Step 2
+
+---
+
+### Step 2: spec — generate specs and implementation plan
+
+**What you do**
+
+1. Type `/sddflow spec`
+2. If multiple active changes exist, tell the AI which one to spec
+3. Review the spec summary (proposal, design, specs, tasks) and confirm or request edits
+4. Wait for OpenSpec artifacts, the translation layer, and the detailed implementation plan
+
+**Output**
+
+- `openspec/changes/<name>/specs/` (spec deltas)
+- `openspec/changes/<name>/tasks.md`
+- `openspec/changes/<name>/design.md` (optional)
+- `openspec/changes/<name>/plan-ready.md` (engineering translation)
+- `docs/superpowers/plans/YYYY-MM-DD-<name>.md` (detailed plan)
+
+**What you verify**
+
+- [ ] `openspec validate <name> --strict` passes (AI should run this; you can re-run it)
+- [ ] `specs/` is non-empty and `tasks.md` exists
+- [ ] Both `plan-ready.md` and the superpowers plan file exist
+- [ ] All three task documents (`tasks.md`, `plan-ready.md`, superpowers plan) use `- [ ]` checkboxes with matching Task numbers
+- [ ] No `TODO`, `TBD`, or similar placeholders in plan files
+- [ ] **No code changes** in this phase
+
+**Then** → proceed to Step 3
+
+---
+
+### Step 3: build — execute implementation
+
+**What you do**
+
+1. Type `/sddflow build`
+2. If the AI reports missing pre-flight files, go back to Step 2
+3. Say "continue" anytime to resume from the last checkpoint
+4. Monitor Task-by-Task execution with TDD (tests before implementation)
+
+**Output**
+
+- Code and test files
+- Plan checkboxes gradually change from `[ ]` to `[x]`
+
+**What you verify**
+
+- [ ] Before build starts, AI confirms: `proposal.md`, `specs/`, `tasks.md`, `plan-ready.md`, and superpowers plan all exist
+- [ ] If **requirements or acceptance criteria change**, do not edit code directly — switch to amend (below)
+- [ ] Build is complete when all Task and Step checkboxes are `[x]`
+
+**Then** → proceed to Step 4
+
+---
+
+### (As needed) amend — revise requirements
+
+**When to use**
+
+- Requirements, boundaries, or acceptance criteria change during build
+- Specs are incomplete before close (not "code doesn't match existing spec")
+
+**What you do**
+
+1. Type `/sddflow amend` and describe what to change
+2. Confirm updates to `proposal.md`, `specs/`, `tasks.md`, `plan-ready.md`, and the implementation plan
+3. Type `/sddflow build` to continue implementation
+
+**What you verify**
+
+- [ ] OpenSpec documents and all three task documents are in sync
+- [ ] `openspec validate <name> --strict` still passes (if specs changed)
+- [ ] amend should **not** modify code directly (unless updating plan documents as part of the amend flow)
+
+**Then** → return to Step 3
+
+---
+
+### Step 4: close — verify and archive
+
+**What you do**
+
+1. Confirm build is fully complete (all checkboxes `[x]`)
+2. Type `/sddflow close`
+3. Follow prompts on whether to run a final code review
+4. Review verification results and confirm archive
+
+**What the AI runs**
+
+- Full test suite and build (must show actual passing output)
+- Cross-check `tasks.md`, `plan-ready.md`, and specs against implementation
+- `openspec validate <name> --strict` for spec consistency
+- OpenSpec Archive to move the change into `openspec/changes/archive/`
+
+**What you verify**
+
+- [ ] All tests pass (0 failures)
+- [ ] Every task has implementation and test evidence
+- [ ] No CRITICAL spec inconsistencies
+- [ ] After archive, `openspec/changes/<name>/` is under `archive/`
+- [ ] `openspec/specs/` is updated if the change merged spec deltas
+
+**Done** → change complete; start a new change from Step 1
+
+---
+
+### Resuming
+
+Follow-up messages that refine scope, answer confirmation questions, or say "continue" stay in the **current phase** — they do not auto-enter build. Code changes only happen after you explicitly run `/sddflow build` or auto-routing determines the build phase.

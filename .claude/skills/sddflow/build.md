@@ -7,23 +7,6 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 
 ## 目标
 
-### 0. 依赖检测
-
-执行前检查以下依赖是否可用（**不在 build 阶段生成或重写计划文件**）：
-
-| 依赖 | 检测方式 | 不可用时 |
-|------|----------|----------|
-| 详细实现计划 | `docs/superpowers/plans/` 下存在含变更名的 `.md` 文件 | **终止 build**，提示先完成 `/sddflow spec` |
-| Superpowers subagent-driven-development | skills 目录下是否存在 `subagent-driven-development/SKILL.md` | 降级为按 plan 文件逐步手动执行 |
-| Superpowers test-driven-development | skills 目录下是否存在 `test-driven-development/SKILL.md` | 提示安装；仍按 plan 执行，须自述遵守 TDD |
-| OpenSpec CLI | `openspec` 命令是否可执行 | 不影响 build；close 归档可改用 `OpenSpec: Archive` 或 `openspec archive` |
-
-如果 Superpowers 子技能缺失，提示用户：
-> "Superpowers 未完整安装，build 将使用手动执行模式。安装后体验更佳：请在当前工具中安装 Superpowers 插件"
-
-**禁止**在 build 阶段调用 `writing-plans`；计划必须在 spec 阶段已生成。
-
-
 严格校验 spec 阶段产出的所有文件完整性，通过后用 `subagent-driven-development` 逐 Task 派发子代理执行，每个子代理强制遵循 `test-driven-development` 铁律。
 
 **build 阶段不生成任何计划文件。** 计划在 `/sddflow spec` 阶段已由 `writing-plans` 完成。
@@ -52,7 +35,7 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 
 | 检查项 | 路径 | 不通过时 |
 |--------|------|----------|
-| 提案文件 | `openspec/changes/<变更名>/proposal.md` | 提示先运行 `/sddflow proposal` |
+| 提案文件 | `openspec/changes/<变更名>/proposal.md` | 提示先运行 `/sddflow brainstorming` |
 | 规格目录 | `openspec/changes/<变更名>/specs/`（非空） | 提示先运行 `/sddflow spec` |
 | 任务清单 | `openspec/changes/<变更名>/tasks.md` | 提示先运行 `/sddflow spec` |
 | 翻译计划 | `openspec/changes/<变更名>/plan-ready.md` | 提示先运行 `/sddflow spec` |

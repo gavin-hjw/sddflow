@@ -158,7 +158,6 @@ export const initCommand = new Command('init')
     }
     logger.blank();
     logger.info('Available commands:');
-    logger.info('  /sddflow proposal      Quick requirement capture');
     logger.info('  /sddflow brainstorming  Deep design exploration');
     logger.info('  /sddflow spec           Generate specs + translate');
     logger.info('  /sddflow amend          Revise requirements before close');
