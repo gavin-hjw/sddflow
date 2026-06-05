@@ -1,5 +1,27 @@
+# Dependencies
 node_modules/
+
+# Build artifacts (npm pack)
 *.tgz
+
+# System
 .DS_Store
-.omx
-.omc
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local agent / tooling
+.omc/
+.omx/
+
+# sddflow / openspec — generated or local state (use templates/ + sddflow init)
+.sddflow/
+.claude/
+
+# Workflow runtime artifacts (dogfooding in this repo)
+openspec/changes/
+docs/superpowers/plans/
