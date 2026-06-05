@@ -117,7 +117,7 @@ openspec validate <变更名> --strict
 
 ### 6. 同步详细实现计划
 
-若需新增或调整实现任务，**追加部分须遵循** Superpowers `writing-plans` skill（与 `/sddflow spec` 步骤 5 相同），并为每个新 `### Task N` 填写 `> **trace:**` / `> **sync:**`（关联 `plan-ready.md` 与 `tasks.md` 原文行）。
+若需新增或调整实现任务，**追加部分须遵循** Superpowers `writing-plans` skill（与 `/sddflow spec` 步骤 5 相同），并满足 spec 中「**三文档 Checkbox 对齐扩展**」（tasks / plan-ready / superpowers plan 均保留任务级与 Step 级 checkbox），为每个新 `### Task N` 填写 `> **trace:**` / `> **sync:**`。
 
 如果 `docs/superpowers/plans/YYYY-MM-DD-<变更名>.md` 已存在：
 - 已勾选 Task/Step 不动

@@ -61,7 +61,7 @@ description: Complete OpenSpec change artifacts per AGENTS.md and OpenSpec Propo
 3. 将变更映射到 capability，按 OpenSpec: Proposal 步骤 3 拆分多能力 delta
 4. 按 AGENTS.md **Creating Change Proposals** 第 5 节判定是否创建 `design.md`；不需要则**不得**添加空 `design.md`
 5. 在 `openspec/changes/<变更名>/specs/<capability>/spec.md` 撰写 delta（`## ADDED|MODIFIED|REMOVED|RENAMED Requirements`；每条 requirement 至少一个 `#### Scenario:`；`MODIFIED` 须粘贴 `openspec/specs/` 中完整 requirement 后再改）
-6. 按 OpenSpec: Proposal 步骤 6 撰写 `tasks.md`（有序、可勾选、含验证项）
+6. 按 OpenSpec: Proposal 步骤 6 撰写 `tasks.md`（有序、可勾选、含验证项）；生成后须符合「三文档 Checkbox 对齐扩展」中 **tasks.md** 条款
 7. 运行严格校验（见 2.3）
 
 **禁止：**
@@ -96,9 +96,29 @@ openspec validate <变更名> --strict
 
 ---
 
+## 三文档 Checkbox 对齐扩展（通用）
+
+以下扩展**不改变**各文档的原有生成逻辑，仅在生成结果上**追加/保留** Markdown checkbox（`- [ ]` / `- [x]`），用于判断「是否已实现」并在 `/sddflow build` 时三向同步。`[ ]` = 未完成，`[x]` = 已完成。
+
+| 文档 | 原有生成逻辑（不得替换） | sddflow 追加：必须有 checkbox |
+|------|------------------------|------------------------------|
+| **tasks.md** | OpenSpec: Proposal 步骤 6 + AGENTS.md 任务清单结构 | 每条**可交付/可验收**的实现项必须以 `- [ ]` 或 `- [x]` 开头；保留 OpenSpec 章节与编号（如 `## 1. Implementation`、`- [ ] 1.1 ...`），**禁止**改成无 checkbox 的纯列表或段落 |
+| **plan-ready.md** | 步骤 4 翻译层（目标 / 改动文件 / 验证方式） | 每个 `### Task N:` 块内**首行**必须为 `- [ ] **任务完成**`（build 完成该 Task 后改为 `[x]`）；不得删除翻译正文，仅追加该行 |
+| **superpowers plan** | Superpowers `writing-plans`（Header、Task、Step、TDD 步骤） | 保留 writing-plans 规定的**每个 Step** `- [ ]`；在每个 `### Task N` 块**末尾**（最后一个 Step 之后）追加 `- [ ] **Task complete**`（该 Task 全部 Step 已为 `[x]` 后方可勾选，并与 plan-ready、tasks 同步） |
+
+**对齐规则：**
+
+- `Task N` 序号在三份文档间一一对应（从 1 递增）
+- 判断「整个 Task 是否完成」：三份文档中该 Task 的**任务级** checkbox 均为 `[x]`，且 superpowers plan 该 Task 下**所有 Step** checkbox 均为 `[x]`
+- 判断「变更是否全部完成」：三份文档中**全部**任务级 checkbox 与 superpowers plan **全部** Step checkbox 均为 `[x]`（供 `/sddflow close` 前置检查）
+
+步骤 2、4、5 完成后须自检上表；缺 checkbox 或 Task 序号不一致 → 修正后再进入下一步。
+
+---
+
 ## 步骤 4：生成 plan-ready.md（翻译层）
 
-将 OpenSpec 四文件翻译为工程视角的执行格式。
+将 OpenSpec 四文件翻译为工程视角的执行格式（**并满足上文「三文档 Checkbox 对齐扩展」中 plan-ready.md 条款**）。
 
 **翻译规则：**
 1. 每个 OpenSpec Task 拆成 2-5 个细粒度步骤（对应 2-5 分钟工作量）
@@ -129,7 +149,7 @@ openspec validate <变更名> --strict
 ### Task 2: ...
 ```
 
-步骤 4 中每个 `### Task N` 的标题与序号须与后续 `tasks.md`、`writing-plans` 产出中的 Task N **一一对应**。
+步骤 4 中每个 `### Task N` 的标题与序号须与 `tasks.md`、`writing-plans` 产出中的 Task N **一一对应**。
 
 ---
 
@@ -154,9 +174,12 @@ openspec validate <变更名> --strict
 
 按 writing-plans 顺序执行：**Scope Check → File Structure → 分解 Task/Step → 写入计划 → Self-Review**。
 
-### 5.2 sddflow 追溯扩展（在 writing-plans 规则之上追加）
+### 5.2 sddflow 追溯与 Checkbox 扩展（在 writing-plans 规则之上追加）
 
-在**不修改** writing-plans 规定的 Plan Header 与 Task/Step 主体结构的前提下，仅追加下列追溯字段，供 `/sddflow build` 多文档 checkbox 同步：
+在**不修改** writing-plans 规定的 Plan Header 与 Task/Step 主体结构的前提下，追加：
+
+1. **Checkbox** — 须满足「三文档 Checkbox 对齐扩展」中 **superpowers plan** 条款（含每个 Task 末尾的 `- [ ] **Task complete**`）
+2. **追溯字段** — 供 `/sddflow build` 定位并同步三份文档：
 
 **Plan Header 在 writing-plans 必填项之后追加：**
 
@@ -178,14 +201,20 @@ openspec validate <变更名> --strict
 - `Task N` 序号在 plan 文件、`plan-ready.md`、`tasks.md` 三者间**一一对应**（N 从 1 递增，不跳号）
 - `trace` / `sync` 中的 `tasks.md`、`plan-ready.md` 引用必须是**可精确匹配的原文**（build 靠此行定位勾选位置）
 - 每个 OpenSpec `tasks.md` 顶层待实现 checkbox 条目至少对应一个 superpowers plan `Task`；每个 `plan-ready.md` 的 `### Task N` 至少对应一个 superpowers plan `Task`
-- writing-plans 的每个 Step 仍使用 `- [ ]` checkbox（build 每完成 Step 立即勾选 plan 文件）
+- writing-plans 的每个 Step 仍使用 `- [ ]` checkbox（build 每完成 Step 立即勾选）
+
+**每个 Task 末尾追加（最后一个 Step 之后）：**
+
+```markdown
+- [ ] **Task complete**（本 Task 全部 Step 为 `[x]` 后勾选；与 plan-ready **任务完成**、tasks.md 对应行同步）
+```
 
 **build 阶段同步契约（写入计划时须自检）：**
 
-| 完成粒度 | 须勾选文档 |
+| 完成粒度 | 须勾选位置 |
 |----------|------------|
-| 每个 Step 完成 | `docs/superpowers/plans/...md` 对应该 Step 的 `- [ ]` → `- [x]` |
-| 整个 Task 完成 | 上表 plan 中该 Task 全部 Step 已为 `[x]`；且 `tasks.md` 中 `sync` 指向的行 → `[x]`；且 `plan-ready.md` 中 `sync` 指向的 **任务完成** checkbox → `[x]` |
+| 每个 Step 完成 | superpowers plan 对应该 Step 的 `- [ ]` → `[x]` |
+| 整个 Task 完成 | 该 Task 全部 Step 为 `[x]`；superpowers plan **Task complete** → `[x]`；`tasks.md` 中 `sync` 指向行 → `[x]`；`plan-ready.md` 中 **任务完成** → `[x]` |
 
 ### 5.3 禁止占位符与自检
 
@@ -194,12 +223,13 @@ openspec validate <变更名> --strict
 **写完计划后依次执行：**
 
 1. writing-plans **Self-Review**（Spec coverage、Placeholder scan、Type consistency）
-2. sddflow 追溯自检（全部为真才进入步骤 6）：
+2. **三文档 Checkbox 自检**（见「三文档 Checkbox 对齐扩展」）：tasks.md、plan-ready.md、superpowers plan 任务级与 Step 级 checkbox 齐全
+3. sddflow 追溯自检（全部为真才进入步骤 6）：
    - [ ] `docs/superpowers/plans/YYYY-MM-DD-<变更名>.md` 已存在
    - [ ] Plan Header 含 writing-plans 必填项 + `**Traceability (sddflow):**`
-   - [ ] 至少 1 个 Task，且 Task 数与 `tasks.md` 待实现条目、`plan-ready.md` 的 `### Task` 数量一致
-   - [ ] 每个 Task 含 `> **trace:**` 与 `> **sync:**`，且 `sync` 中 tasks/plan-ready 行可在源文件中逐字找到
-   - [ ] 每个 Step 为 writing-plans 粒度（2–5 分钟单动作），含完整代码块与 Run/Expected（无占位符）
+   - [ ] 至少 1 个 Task，且 Task 数与 `tasks.md`、`plan-ready.md` 的 `### Task` 数量一致
+   - [ ] 每个 Task 含 `> **trace:**`、`> **sync:**`，且末尾有 `- [ ] **Task complete**`
+   - [ ] 每个 Step 为 writing-plans 粒度，含完整代码块与 Run/Expected（无占位符）
 
 有任一不通过 → 按 writing-plans Self-Review 修正后重做追溯自检，禁止进入步骤 6。
 
@@ -231,6 +261,7 @@ openspec validate <变更名> --strict
 - **一条代码都不许写** — spec 阶段只产出文档
 - 只允许写 `openspec/changes/**`、`plan-ready.md`、`docs/superpowers/plans/*.md`，禁止修改任何代码
 - 翻译（plan-ready.md、writing-plans）在用户确认 OpenSpec 规格后进行，不改变 delta spec 格式
-- 步骤 5 须通过 writing-plans Self-Review 与 sddflow 追溯自检，否则不允许结束 spec 阶段
+- 三份任务文档均须满足「三文档 Checkbox 对齐扩展」，便于对齐是否已实现
+- 步骤 5 须通过 writing-plans Self-Review、Checkbox 自检与追溯自检，否则不允许结束 spec 阶段
 - plan-ready.md 的 `## 来源` 部分必须写明路径
 - 按执行依赖排序是翻译的关键步骤：先依赖后依赖方

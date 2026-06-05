@@ -40,6 +40,7 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 | 任务清单 | `openspec/changes/<变更名>/tasks.md` | 提示先运行 `/sddflow spec` |
 | 翻译计划 | `openspec/changes/<变更名>/plan-ready.md` | 提示先运行 `/sddflow spec` |
 | 详细实现计划 | `docs/superpowers/plans/` 下有 `<变更名>` 对应文件 | 提示先运行 `/sddflow spec` |
+| Checkbox 扩展 | 三份任务文档均含 `- [ ]` / `- [x]`（见 spec「三文档 Checkbox 对齐扩展」） | 提示先运行 `/sddflow spec` 补齐 checkbox |
 
 任一不通过，输出完整缺失列表后终止：
 
@@ -57,7 +58,8 @@ description: Strict pre-flight file check, then execute with subagent-driven-dev
 | 包含 Task | 至少 1 个 `### Task N:` |
 | Trace / Sync | 每个 Task 都有 `> **trace:**` 与 `> **sync:**`（含 tasks.md 与 plan-ready.md 原文行） |
 | 无占位符 | 不含 "TODO"、"TBD"、"实现待定" |
-| Checkbox 语法 | 存在 `- [ ]` 或 `- [x]` |
+| Checkbox 语法 | plan 中每个 Step 与每个 Task 末尾 **Task complete** 均有 `- [ ]` 或 `- [x]` |
+| plan-ready / tasks | 对应变更的 plan-ready **任务完成** 行、tasks.md 任务行均为 checkbox 语法 |
 
 任一不通过，提示：
 
@@ -113,7 +115,7 @@ plan 文件通过校验后，读取其 checkbox 状态：
          ↓ ✅
 ┌─ 派发 Code Quality Reviewer 子代理 ────────────────────────────┐
 │  • 审查代码质量（命名、结构、耦合、测试覆盖率）                 │
-│  • ✅ → 勾选 plan 文件 Task checkbox → 同步 tasks.md           │
+│  • ✅ → 执行 2.5 三文档 checkbox 同步（plan Step/Task、tasks、plan-ready） │
 │  • ❌ → Implementer 修复 → 重新 Quality 审查                    │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -159,7 +161,10 @@ plan 文件通过校验后，读取其 checkbox 状态：
 
 每个 Task 全部 Step 勾选完毕后，**立即**按 plan 文件中该 Task 的 `> **sync:**` 与 `> **trace:**` 同步以下三处（顺序不限，须在同一轮完成）：
 
-**A. superpowers plan（当前文件）** — 该 Task 下所有 Step 已为 `[x]`（应在 2.4 中逐步完成）
+**A. superpowers plan（当前文件）**
+
+1. 该 Task 下所有 Step 已为 `[x]`（应在 2.4 中逐步完成）
+2. 将该 Task 末尾 `- [ ] **Task complete**` 改为 `- [x] **Task complete**`
 
 **B. tasks.md**
 
@@ -189,6 +194,7 @@ plan 文件通过校验后，读取其 checkbox 状态：
 - [ ] `openspec/changes/<变更名>/plan-ready.md` 所有 **任务完成** checkbox 为 `[x]`
 - [ ] plan 文件所有 checkbox 为 `[x]`
 - [ ] 三文档 Task 数量与 plan 中 `### Task N` 数量一致
+- [ ] superpowers plan 每个 Task 的 **Task complete** 均为 `[x]`
 
 **不一致时：**
 
