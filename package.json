@@ -1,6 +1,6 @@
 {
   "name": "@gavin-hjw/sddflow",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "OpenSpec + Superpowers workflow orchestrator for Claude Code",
   "bin": {
     "sddflow": "bin/sddflow.js"
