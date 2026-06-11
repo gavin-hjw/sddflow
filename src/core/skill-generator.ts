@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { fileExists } from '../utils/shell.js';
 import { logger } from '../utils/logger.js';
-import { SKILL_NAME, TOOL_PATHS, DEPS } from './constants.js';
+import { SKILL_NAME, TOOL_PATHS } from './constants.js';
 import type { DepStatus } from './dependency-check.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -121,11 +121,6 @@ function generateSkillFile(
     content = getInlineTemplate(filename, depStatus, templateSubdir);
   }
 
-  // Inject runtime dependency checks into build.md
-  if (filename === 'build.md') {
-    content = injectRuntimeDepCheck(content, depStatus);
-  }
-
   const targetPath = path.join(targetDir, filename);
   fs.writeFileSync(targetPath, content);
   const displayName = templateSubdir ? `${templateSubdir}/${filename}` : filename;
@@ -190,36 +185,6 @@ ${disableModelInvocation}---
 4. 严格遵守主 sddflow 工作流、阶段写入边界和当前阶段文件
 5. 如果 \`$ARGUMENTS\` 中有额外需求或上下文，将它作为 ${phase} 阶段输入
 `;
-}
-
-function injectRuntimeDepCheck(content: string, _depStatus: DepStatus): string {
-  const checkSection = `
-### 0. 依赖检测
-
-执行前检查以下依赖是否可用（**不在 build 阶段生成或重写计划文件**）：
-
-| 依赖 | 检测方式 | 不可用时 |
-|------|----------|----------|
-| 详细实现计划 | \`docs/superpowers/plans/\` 下存在含变更名的 \`.md\` 文件 | **终止 build**，提示先完成 \`/sddflow spec\` |
-| Superpowers subagent-driven-development | skills 目录下是否存在 \`subagent-driven-development/SKILL.md\` | 降级为按 plan 文件逐步手动执行 |
-| Superpowers test-driven-development | skills 目录下是否存在 \`test-driven-development/SKILL.md\` | 提示安装；仍按 plan 执行，须自述遵守 TDD |
-| OpenSpec CLI | \`openspec\` 命令是否可执行 | 不影响 build；close 归档可改用 \`OpenSpec: Archive\` 或 \`openspec archive\` |
-
-如果 Superpowers 子技能缺失，提示用户：
-> "Superpowers 未完整安装，build 将使用手动执行模式。安装后体验更佳：${DEPS.superpowers.installHint}"
-
-**禁止**在 build 阶段调用 \`writing-plans\`；计划必须在 spec 阶段已生成。
-`;
-
-  // Insert after the first heading
-  const lines = content.split('\n');
-  const firstH2Idx = lines.findIndex((l) => l.startsWith('## '));
-  if (firstH2Idx >= 0) {
-    lines.splice(firstH2Idx + 1, 0, checkSection);
-  } else {
-    lines.unshift(checkSection);
-  }
-  return lines.join('\n');
 }
 
 function getInlineTemplate(

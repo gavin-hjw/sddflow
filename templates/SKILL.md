@@ -8,6 +8,13 @@ disable-model-invocation: true
 
 根据用户调用的子命令和项目当前状态，路由到对应阶段。
 
+## 数据与隐私
+
+- 本 skill 在用户本地 workspace 与已批准的 Agent 环境（如 Cursor、Claude Code）中运行，**不直接调用**外部公网 LLM API
+- **数据流向**：用户输入（需求、设计、代码上下文）由当前 Agent 处理；产出落盘于 `openspec/changes/**`、`docs/superpowers/plans/**` 及项目代码目录，不主动外发第三方服务
+- **禁止**在对话或规格文档中粘贴真实密钥、Token、密码、完整身份证号、手机号等 PII；示例须使用占位符（如 `<API_KEY>`、`138****1234`）
+- 若需求涉及敏感数据，仅在脱敏后的示例上讨论，并注明数据不得离开公司批准环境
+
 ## 续接与中断恢复
 
 如果本轮没有显式 `/sddflow ...` 子命令，但上一轮已经进入 sddflow 任一阶段，并且用户是在补充范围、回答确认问题、说“继续”、修正需求、或说明新增/移除边界：
@@ -99,3 +106,8 @@ disable-model-invocation: true
 | amend | 需要有活跃变更目录，通常需要 plan-ready.md | "还没有可修订的活跃变更，请先完成 /sddflow spec" |
 | build | 需要存在 plan-ready.md | "请先完成 /sddflow spec 生成规格和翻译" |
 | close | 需要实现已完成 | "实现尚未完成，请先用 /sddflow build 执行" |
+
+## 技能源与维护
+
+- **唯一源文件**：本仓库 `templates/`（`SKILL.md` 与 `references/*.md`）
+- **部署产物**：各工具 `skills/sddflow/` 由 `sddflow update` 自动生成，**请勿手工编辑**；修改请只改 `templates/` 后重新运行 update
