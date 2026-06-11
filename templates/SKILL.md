@@ -1,7 +1,7 @@
 ---
 name: sddflow
-description: "OpenSpec + Superpowers workflow orchestrator. Use /sddflow brainstorming for design exploration, /sddflow spec to generate specs + translate, /sddflow amend to revise requirements before close, /sddflow build to execute, /sddflow close to verify and archive. Bridges requirements specs and engineering execution."
-argument-hint: "brainstorming | spec | amend | build | close"
+description: "OpenSpec + Superpowers workflow orchestrator. Use /sddflow brainstorming for design exploration, /sddflow spec to generate specs + translate, /sddflow amend to revise requirements before close, /sddflow build to execute, /sddflow close to verify and archive. Subcommands: brainstorming, spec, amend, build, close. Bridges requirements specs and engineering execution."
+disable-model-invocation: true
 ---
 
 # sddflow - 工作流协调器
@@ -69,6 +69,16 @@ argument-hint: "brainstorming | spec | amend | build | close"
 - 实现进行中 → 继续 build 阶段（断点恢复）
 - 实现已完成 → close 阶段
 
+## 阶段参考文件
+
+| 阶段 | 文件 |
+|------|------|
+| brainstorming | `references/brainstorming.md` |
+| spec | `references/spec.md` |
+| amend | `references/amend.md` |
+| build | `references/build.md` |
+| close | `references/close.md` |
+
 ## 路由
 
 根据子命令或状态检测结果，读取对应阶段文件并执行：
@@ -77,7 +87,7 @@ argument-hint: "brainstorming | spec | amend | build | close"
 2. 如果用户在 build 中明确提出需求变更、补充 spec、修改验收条件或重新生成规格，路由到 amend
 3. 如果用户指定了子命令（如 `/sddflow build`），按指定阶段执行，但检查前置条件
 4. 如果用户只输入 `/sddflow`（无子命令、非续接），执行状态检测，自动路由到对应阶段
-5. 读取当前 sddflow skill 目录下的阶段文件：`<阶段>.md`（与本 `SKILL.md` 同目录；不要依赖 Claude 专属环境变量）
+5. 读取当前 sddflow skill 目录下的阶段文件：`references/<阶段>.md`（不要依赖 Claude 专属环境变量）
 6. 按阶段文件中的流程执行，并遵守阶段写入边界
 
 ### 前置条件检查
