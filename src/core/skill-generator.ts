@@ -14,12 +14,34 @@ const __dirname = path.dirname(__filename);
 const TEMPLATES_DIR = path.resolve(__dirname, '..', '..', 'templates');
 
 const PHASES = [
-  { name: 'brainstorming', description: 'Deep design exploration' },
-  { name: 'spec', description: 'Complete OpenSpec artifacts per AGENTS.md, then plan-ready and writing-plans' },
-  { name: 'amend', description: 'Revise requirements/specs before close' },
-  { name: 'build', description: 'Execute implementation' },
-  { name: 'close', description: 'Verify consistency and archive' },
+  {
+    name: 'brainstorming',
+    description: 'Deep design exploration',
+    triggers: '需求探索、方案设计、brainstorming',
+  },
+  {
+    name: 'spec',
+    description: 'Complete OpenSpec artifacts per AGENTS.md, then plan-ready and writing-plans',
+    triggers: '规格生成、OpenSpec、writing-plans',
+  },
+  {
+    name: 'amend',
+    description: 'Revise requirements/specs before close',
+    triggers: '需求修订、规格变更、amend',
+  },
+  {
+    name: 'build',
+    description: 'Execute implementation',
+    triggers: '执行实现、TDD 开发、build',
+  },
+  {
+    name: 'close',
+    description: 'Verify consistency and archive',
+    triggers: '验证归档、收尾合并、close',
+  },
 ] as const;
+
+const PHASES_REQUIRING_DISABLE_MODEL_INVOCATION = new Set(['build', 'close']);
 
 const PHASE_ALIAS_TOOLS = new Set(['claude', 'codex', 'cursor']);
 
@@ -55,10 +77,17 @@ export function generateSkills(options: GenerateOptions): void {
     // Generate main SKILL.md
     generateSkillFile(skillsDir, 'SKILL.md', depStatus);
 
-    // Generate phase files
-    for (const phase of PHASES) {
-      generateSkillFile(skillsDir, `${phase.name}.md`, depStatus);
+    // Generate phase reference files
+    const referencesDir = path.join(skillsDir, 'references');
+    if (!fs.existsSync(referencesDir)) {
+      fs.mkdirSync(referencesDir, { recursive: true });
     }
+
+    for (const phase of PHASES) {
+      generateSkillFile(referencesDir, `${phase.name}.md`, depStatus, 'references');
+    }
+
+    removeLegacyPhaseFiles(skillsDir);
 
     if (PHASE_ALIAS_TOOLS.has(tool)) {
       generatePhaseAliasSkills({
@@ -73,8 +102,15 @@ export function generateSkills(options: GenerateOptions): void {
   }
 }
 
-function generateSkillFile(skillsDir: string, filename: string, depStatus: DepStatus): void {
-  const templatePath = path.join(TEMPLATES_DIR, filename);
+function generateSkillFile(
+  targetDir: string,
+  filename: string,
+  depStatus: DepStatus,
+  templateSubdir?: string,
+): void {
+  const templatePath = templateSubdir
+    ? path.join(TEMPLATES_DIR, templateSubdir, filename)
+    : path.join(TEMPLATES_DIR, filename);
 
   let content: string;
 
@@ -82,7 +118,7 @@ function generateSkillFile(skillsDir: string, filename: string, depStatus: DepSt
     content = fs.readFileSync(templatePath, 'utf-8');
   } else {
     // Fallback: use inline template
-    content = getInlineTemplate(filename, depStatus);
+    content = getInlineTemplate(filename, depStatus, templateSubdir);
   }
 
   // Inject runtime dependency checks into build.md
@@ -90,9 +126,19 @@ function generateSkillFile(skillsDir: string, filename: string, depStatus: DepSt
     content = injectRuntimeDepCheck(content, depStatus);
   }
 
-  const targetPath = path.join(skillsDir, filename);
+  const targetPath = path.join(targetDir, filename);
   fs.writeFileSync(targetPath, content);
-  logger.step(`  ${filename}`);
+  const displayName = templateSubdir ? `${templateSubdir}/${filename}` : filename;
+  logger.step(`  ${displayName}`);
+}
+
+function removeLegacyPhaseFiles(skillsDir: string): void {
+  for (const phase of PHASES) {
+    const legacyPath = path.join(skillsDir, `${phase.name}.md`);
+    if (fs.existsSync(legacyPath)) {
+      fs.unlinkSync(legacyPath);
+    }
+  }
 }
 
 function generatePhaseAliasSkills(options: {
@@ -116,18 +162,21 @@ function generatePhaseAliasSkills(options: {
 
     fs.writeFileSync(
       path.join(aliasDir, 'SKILL.md'),
-      getPhaseAliasTemplate(phase.name, phase.description),
+      getPhaseAliasTemplate(phase.name, phase.description, phase.triggers),
     );
     logger.step(`  ${displayPath}`);
   }
 }
 
-function getPhaseAliasTemplate(phase: string, description: string): string {
+function getPhaseAliasTemplate(phase: string, description: string, triggers: string): string {
+  const disableModelInvocation = PHASES_REQUIRING_DISABLE_MODEL_INVOCATION.has(phase)
+    ? 'disable-model-invocation: true\n'
+    : '';
+
   return `---
 name: ${SKILL_NAME}-${phase}
-description: "SDDFlow ${phase}: ${description}. Visibility alias for ${SKILL_NAME} ${phase}."
-argument-hint: "[optional context]"
----
+description: "SDDFlow ${phase}: ${description}. Visibility alias for ${SKILL_NAME} ${phase}. 触发词：${triggers}."
+${disableModelInvocation}---
 
 # ${SKILL_NAME}-${phase}
 
@@ -137,7 +186,7 @@ argument-hint: "[optional context]"
 
 1. 将本次调用视为用户调用了 \`/${SKILL_NAME} ${phase} $ARGUMENTS\`
 2. 读取同级 skills 目录中的 \`${SKILL_NAME}/SKILL.md\`
-3. 读取 \`${SKILL_NAME}/${phase}.md\`
+3. 读取 \`${SKILL_NAME}/references/${phase}.md\`
 4. 严格遵守主 sddflow 工作流、阶段写入边界和当前阶段文件
 5. 如果 \`$ARGUMENTS\` 中有额外需求或上下文，将它作为 ${phase} 阶段输入
 `;
@@ -173,8 +222,14 @@ function injectRuntimeDepCheck(content: string, _depStatus: DepStatus): string {
   return lines.join('\n');
 }
 
-function getInlineTemplate(filename: string, _depStatus: DepStatus): string {
-  const templatePath = path.join(TEMPLATES_DIR, filename);
+function getInlineTemplate(
+  filename: string,
+  _depStatus: DepStatus,
+  templateSubdir?: string,
+): string {
+  const templatePath = templateSubdir
+    ? path.join(TEMPLATES_DIR, templateSubdir, filename)
+    : path.join(TEMPLATES_DIR, filename);
   if (fileExists(templatePath)) {
     return fs.readFileSync(templatePath, 'utf-8');
   }
